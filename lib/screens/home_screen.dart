@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'welcome_screen.dart';
 import 'profile_screen.dart';
+import "package:myapp/widgets/bottom_nav_bar.dart";
+import 'search_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,8 +18,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> pages = [
     const Center(child: Text('Home')),
+    const SearchScreen(),
     const Center(child: Text('Post')),
-    const Center(child: Text('Friend')),
     const Center(child: Text('Notifications')),
     const ProfileScreen(),
   ];
@@ -77,20 +80,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: _buildAppBar(),
       body: pages[selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: BottomNavBar(
         currentIndex: selectedIndex,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.white,
         onTap: (index) => setState(() => selectedIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'Post'),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Friend'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Thông báo'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
       ),
     );
-  }
+        }
 }
