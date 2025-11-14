@@ -143,36 +143,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(isFollowing ? 'Unfollow' : 'Follow'),
                     ),
                   ),
-                const SizedBox(height: 24),
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('posts')
-                        .where('userId', isEqualTo: uid)
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                      final posts = snapshot.data!.docs;
-                      if (posts.isEmpty) return const Center(child: Text('Chưa có bài viết'));
-                      return ListView.builder(
-                        itemCount: posts.length,
-                        itemBuilder: (context, index) {
-                          final post = posts[index].data() as Map<String, dynamic>;
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            child: ListTile(
-                              title: Text(post['content'] ?? ''),
-                              leading: post['imageUrl'] != null
-                                  ? Image.network(post['imageUrl'], width: 50, height: 50, fit: BoxFit.cover)
-                                  : const Icon(Icons.image),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
               ],
             ),
           ),

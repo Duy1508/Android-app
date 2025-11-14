@@ -4,6 +4,8 @@ import 'welcome_screen.dart';
 import 'profile_screen.dart';
 import "package:myapp/widgets/bottom_nav_bar.dart";
 import 'search_screen.dart';
+import 'post_screen.dart';
+import 'feed_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -17,9 +19,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
 
   final List<Widget> pages = [
-    const Center(child: Text('Home')),
+    const FeedScreen(),       // Trang chủ hiển thị bài viết
     const SearchScreen(),
-    const Center(child: Text('Post')),
+    const PostScreen(),       // Trang đăng bài
     const Center(child: Text('Notifications')),
     const ProfileScreen(),
   ];
