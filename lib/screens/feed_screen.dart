@@ -33,7 +33,7 @@ class FeedScreen extends StatelessWidget {
               future: FirebaseFirestore.instance.collection('users').doc(postUserId).get(),
               builder: (context, userSnapshot) {
                 if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                  return const ListTile(title: Text('Người dùng đã xóa'));
+                  return const ListTile(title: Text(''));
                 }
 
                 final userData = userSnapshot.data!.data() as Map<String, dynamic>;
