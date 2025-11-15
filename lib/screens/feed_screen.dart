@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'comment_screen.dart';
+import '../services/notification_service.dart';
+
 
 class FeedScreen extends StatelessWidget {
   const FeedScreen({super.key});
@@ -148,11 +150,24 @@ class FeedScreen extends StatelessWidget {
                               onPressed: () async {
                                 if (currentUser == null) return;
                                 final uid = currentUser.uid;
+
                                 if (likes.contains(uid)) {
+                                  // Nếu đã like thì bỏ like
                                   likes.remove(uid);
                                 } else {
+                                  // Nếu chưa like thì thêm like
                                   likes.add(uid);
+
+                                  // 👉 Tạo thông báo cho chủ bài viết
+                                  final notificationService = NotificationService();
+                                  await notificationService.createNotification(
+                                    userId: postUserId,   // người nhận thông báo
+                                    type: 'like',         // loại thông báo
+                                    fromUserId: uid,      // người thực hiện like
+                                    postId: postDoc.id,   // id bài viết liên quan
+                                  );
                                 }
+
                                 await postDoc.reference.update({'likes': likes});
                               },
                             ),

@@ -69,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                  (route) => false,
+                      (route) => false,
                 );
               },
             ),

@@ -5,37 +5,44 @@ class FollowService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final NotificationService _notificationService = NotificationService();
 
-  // Collection references
   CollectionReference get _followersRef => _firestore.collection('followers');
   CollectionReference get _usersRef => _firestore.collection('users');
 
   /// Follow một user
   Future<void> followUser(String followerId, String followingId) async {
-    // Không cho phép follow chính mình
     if (followerId == followingId) {
       throw Exception('Không thể theo dõi chính mình');
     }
 
-    // Kiểm tra đã follow chưa
     final docId = '${followerId}_$followingId';
     final doc = await _followersRef.doc(docId).get();
-    
     if (doc.exists) {
       throw Exception('Đã theo dõi người dùng này');
     }
 
     try {
-      // Tạo follow document
+      // Tạo document trong collection followers toàn cục
       await _followersRef.doc(docId).set({
         'followerId': followerId,
         'followingId': followingId,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Thêm vào subcollection của user
+      await _usersRef.doc(followingId).collection('followers').doc(followerId).set({
+        'userId': followerId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await _usersRef.doc(followerId).collection('following').doc(followingId).set({
+        'userId': followingId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
       // Cập nhật counters
       await _updateCounters(followerId, followingId, increment: true);
 
-      // Tạo notification cho người được follow
+      // Tạo notification
       await _notificationService.createNotification(
         userId: followingId,
         type: 'follow',
@@ -50,14 +57,17 @@ class FollowService {
   Future<void> unfollowUser(String followerId, String followingId) async {
     final docId = '${followerId}_$followingId';
     final doc = await _followersRef.doc(docId).get();
-    
     if (!doc.exists) {
       throw Exception('Chưa theo dõi người dùng này');
     }
 
     try {
-      // Xóa follow document
+      // Xóa document trong collection followers toàn cục
       await _followersRef.doc(docId).delete();
+
+      // Xóa trong subcollection
+      await _usersRef.doc(followingId).collection('followers').doc(followerId).delete();
+      await _usersRef.doc(followerId).collection('following').doc(followingId).delete();
 
       // Cập nhật counters
       await _updateCounters(followerId, followingId, increment: false);
@@ -66,58 +76,43 @@ class FollowService {
     }
   }
 
-  /// Kiểm tra xem đã follow chưa
+  /// Kiểm tra trạng thái follow
   Future<bool> checkIfFollowing(String followerId, String followingId) async {
     if (followerId == followingId) return false;
-    
     final docId = '${followerId}_$followingId';
     final doc = await _followersRef.doc(docId).get();
     return doc.exists;
   }
 
-  /// Stream để lắng nghe trạng thái follow
   Stream<bool> isFollowingStream(String followerId, String followingId) {
-    if (followerId == followingId) {
-      return Stream.value(false);
-    }
-    
+    if (followerId == followingId) return Stream.value(false);
     final docId = '${followerId}_$followingId';
     return _followersRef.doc(docId).snapshots().map((doc) => doc.exists);
   }
 
-  /// Lấy danh sách followers của một user (Stream)
+  /// Lấy danh sách followers
   Stream<QuerySnapshot> getFollowersStream(String userId) {
-    return _followersRef
-        .where('followingId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+    return _usersRef.doc(userId).collection('followers').orderBy('createdAt', descending: true).snapshots();
   }
 
-  /// Lấy danh sách following của một user (Stream)
+  /// Lấy danh sách following
   Stream<QuerySnapshot> getFollowingStream(String userId) {
-    return _followersRef
-        .where('followerId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+    return _usersRef.doc(userId).collection('following').orderBy('createdAt', descending: true).snapshots();
   }
 
-  /// Lấy số lượng followers
+  /// Đếm số lượng followers
   Future<int> getFollowersCount(String userId) async {
-    final snapshot = await _followersRef
-        .where('followingId', isEqualTo: userId)
-        .get();
+    final snapshot = await _usersRef.doc(userId).collection('followers').get();
     return snapshot.docs.length;
   }
 
-  /// Lấy số lượng following
+  /// Đếm số lượng following
   Future<int> getFollowingCount(String userId) async {
-    final snapshot = await _followersRef
-        .where('followerId', isEqualTo: userId)
-        .get();
+    final snapshot = await _usersRef.doc(userId).collection('following').get();
     return snapshot.docs.length;
   }
 
-  /// Stream số lượng followers từ user document
+  /// Stream số lượng followers
   Stream<int> getFollowersCountStream(String userId) {
     return _usersRef.doc(userId).snapshots().map((doc) {
       final data = doc.data() as Map<String, dynamic>?;
@@ -125,7 +120,7 @@ class FollowService {
     });
   }
 
-  /// Stream số lượng following từ user document
+  /// Stream số lượng following
   Stream<int> getFollowingCountStream(String userId) {
     return _usersRef.doc(userId).snapshots().map((doc) {
       final data = doc.data() as Map<String, dynamic>?;
@@ -133,21 +128,15 @@ class FollowService {
     });
   }
 
-  /// Cập nhật counters sử dụng batch để đảm bảo atomicity
-  Future<void> _updateCounters(
-    String followerId,
-    String followingId, {
-    required bool increment,
-  }) async {
+  /// Cập nhật counters
+  Future<void> _updateCounters(String followerId, String followingId, {required bool increment}) async {
     final batch = _firestore.batch();
 
-    // Cập nhật followingCount của follower
     final followerRef = _usersRef.doc(followerId);
     batch.update(followerRef, {
       'followingCount': FieldValue.increment(increment ? 1 : -1),
     });
 
-    // Cập nhật followersCount của following
     final followingRef = _usersRef.doc(followingId);
     batch.update(followingRef, {
       'followersCount': FieldValue.increment(increment ? 1 : -1),
@@ -156,9 +145,8 @@ class FollowService {
     await batch.commit();
   }
 
-  /// Lấy thông tin user từ follower/following document
+  /// Lấy thông tin user
   Future<DocumentSnapshot> getUserInfo(String userId) async {
     return await _usersRef.doc(userId).get();
   }
 }
-
