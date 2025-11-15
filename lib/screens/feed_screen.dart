@@ -157,14 +157,29 @@ class FeedScreen extends StatelessWidget {
                               },
                             ),
                             Text('${likes.length}'),
+                            const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.comment),
+                              icon: const Icon(Icons.comment_outlined),
                               onPressed: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => CommentScreen(postId: postDoc.id),
                                   ),
+                                );
+                              },
+                            ),
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('posts')
+                                  .doc(postDoc.id)
+                                  .collection('comments')
+                                  .snapshots(),
+                              builder: (context, commentSnapshot) {
+                                final commentCount = commentSnapshot.data?.docs.length ?? 0;
+                                return Text(
+                                  '$commentCount',
+                                  style: const TextStyle(fontSize: 14),
                                 );
                               },
                             ),
