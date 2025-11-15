@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'home_screen.dart';
 
 class PostScreen extends StatefulWidget {
@@ -19,20 +18,7 @@ class _PostScreenState extends State<PostScreen> {
   File? _selectedImage;
   bool _isUploading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _requestPhotoPermission(); // ✅ xin quyền ngay khi mở màn hình
-  }
 
-  Future<void> _requestPhotoPermission() async {
-    final status = await Permission.photos.request();
-    if (status.isDenied || status.isPermanentlyDenied) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ứng dụng cần quyền truy cập thư viện ảnh')),
-      );
-    }
-  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();

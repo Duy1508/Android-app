@@ -65,6 +65,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'name': '',
           'avatarUrl': null,
           'bio': '',
+          'followersCount': 0,
+          'followingCount': 0,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }

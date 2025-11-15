@@ -6,7 +6,7 @@ import "package:myapp/widgets/bottom_nav_bar.dart";
 import 'search_screen.dart';
 import 'post_screen.dart';
 import 'feed_screen.dart';
-
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,10 +19,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
 
   final List<Widget> pages = [
-    const FeedScreen(),       // Trang chủ hiển thị bài viết
+    const FeedScreen(), // Trang chủ hiển thị bài viết
     const SearchScreen(),
-    const PostScreen(),       // Trang đăng bài
-    const Center(child: Text('Notifications')),
+    const PostScreen(), // Trang đăng bài
+    const NotificationsScreen(), // Màn hình thông báo
     const ProfileScreen(),
   ];
 
@@ -40,6 +40,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         );
+      case 3:
+        return null; // NotificationsScreen đã có AppBar riêng
       case 4:
         return null; // ❌ Không cần AppBar vì ProfileScreen đã có riêng
       default:
@@ -67,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                      (route) => false,
+                  (route) => false,
                 );
               },
             ),
@@ -87,5 +89,5 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) => setState(() => selectedIndex = index),
       ),
     );
-        }
+  }
 }
