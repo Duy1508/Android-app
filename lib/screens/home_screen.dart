@@ -7,6 +7,7 @@ import 'search_screen.dart';
 import 'post_screen.dart';
 import 'feed_screen.dart';
 import 'notifications_screen.dart';
+import 'chat_contacts_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,11 +18,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
+  static const int _chatTabIndex = 3;
 
   final List<Widget> pages = [
     const FeedScreen(), // Trang chủ hiển thị bài viết
     const SearchScreen(),
     const PostScreen(), // Trang đăng bài
+    const ChatContactsScreen(), // Danh bạ chat
     const NotificationsScreen(), // Màn hình thông báo
     const ProfileScreen(),
   ];
@@ -34,15 +37,27 @@ class _HomeScreenState extends State<HomeScreen> {
           title: const Text('Trang chủ'),
           actions: [
             IconButton(
+              icon: const Icon(Icons.chat_bubble_outline),
+              tooltip: 'Trò chuyện',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatContactsScreen()),
+                );
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.settings),
               tooltip: 'Cài đặt',
               onPressed: _openLogoutMenu,
             ),
           ],
         );
-      case 3:
-        return null; // NotificationsScreen đã có AppBar riêng
+      case _chatTabIndex:
+        return null; // ChatContactsScreen đã có AppBar riêng
       case 4:
+        return null; // NotificationsScreen đã có AppBar riêng
+      case 5:
         return null; // ❌ Không cần AppBar vì ProfileScreen đã có riêng
       default:
         return AppBar(

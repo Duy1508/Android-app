@@ -22,21 +22,19 @@ class _SearchScreenState extends State<SearchScreen> {
     final nameQuery = FirebaseFirestore.instance
         .collection('users')
         .where('name', isGreaterThanOrEqualTo: query)
-        .where('name', isLessThanOrEqualTo: query + '\uf8ff')
+        .where('name', isLessThanOrEqualTo: '$query\uf8ff')
         .get();
 
     final emailQuery = FirebaseFirestore.instance
         .collection('users')
         .where('email', isGreaterThanOrEqualTo: query)
-        .where('email', isLessThanOrEqualTo: query + '\uf8ff')
+        .where('email', isLessThanOrEqualTo: '$query\uf8ff')
         .get();
 
     final results = await Future.wait([nameQuery, emailQuery]);
 
     final allDocs = [...results[0].docs, ...results[1].docs];
-    final uniqueDocs = {
-      for (var doc in allDocs) doc.id: doc,
-    }.values.toList();
+    final uniqueDocs = {for (var doc in allDocs) doc.id: doc}.values.toList();
 
     setState(() => searchResults = uniqueDocs);
   }

@@ -26,12 +26,21 @@ class BottomNavBar extends StatelessWidget {
       onTap: onTap,
       items: [
         const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.search),
+          label: 'Search',
+        ),
         const BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'Post'),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.chat_bubble_outline),
+          label: 'Chat',
+        ),
         BottomNavigationBarItem(
           icon: currentUser != null
               ? StreamBuilder<int>(
-                  stream: notificationService.getUnreadCountStream(currentUser.uid),
+                  stream: notificationService.getUnreadCountStream(
+                    currentUser.uid,
+                  ),
                   builder: (context, snapshot) {
                     final unreadCount = snapshot.data ?? 0;
                     return Stack(
@@ -53,7 +62,9 @@ class BottomNavBar extends StatelessWidget {
                                 minHeight: 16,
                               ),
                               child: Text(
-                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                unreadCount > 99
+                                    ? '99+'
+                                    : unreadCount.toString(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -70,7 +81,10 @@ class BottomNavBar extends StatelessWidget {
               : const Icon(Icons.notifications),
           label: 'Thông báo',
         ),
-        const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.person),
+          label: 'Profile',
+        ),
       ],
     );
   }
