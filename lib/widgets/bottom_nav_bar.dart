@@ -26,15 +26,9 @@ class BottomNavBar extends StatelessWidget {
       onTap: onTap,
       items: [
         const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.search),
-          label: 'Search',
-        ),
+        const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat',), //const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search',),
         const BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'Post'),
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.chat_bubble_outline),
-          label: 'Chat',
-        ),
+        //const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat',),
         BottomNavigationBarItem(
           icon: currentUser != null
               ? StreamBuilder<int>(

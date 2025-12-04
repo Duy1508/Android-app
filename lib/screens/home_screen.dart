@@ -22,9 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> pages = [
     const FeedScreen(), // Trang chủ hiển thị bài viết
-    const SearchScreen(),
+    const ChatContactsScreen(), //const SearchScreen(),
     const PostScreen(), // Trang đăng bài
-    const ChatContactsScreen(), // Danh bạ chat
+    //const ChatContactsScreen(), // Danh bạ chat
     const NotificationsScreen(), // Màn hình thông báo
     const ProfileScreen(),
   ];
@@ -37,12 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
           title: const Text('Trang chủ'),
           actions: [
             IconButton(
-              icon: const Icon(Icons.chat_bubble_outline),
-              tooltip: 'Trò chuyện',
+              icon: const Icon(Icons.search),
+              tooltip: 'Tìm Kiếm',
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const ChatContactsScreen()),
+                  MaterialPageRoute(builder: (_) => const SearchScreen()),
                 );
               },
             ),
