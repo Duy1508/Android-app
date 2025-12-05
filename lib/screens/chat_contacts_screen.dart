@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -16,34 +18,112 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
   final FollowService _followService = FollowService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final User? _currentUser = FirebaseAuth.instance.currentUser;
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  String _searchTerm = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  List<List<String>> _chunkIds(List<String> ids, {int size = 10}) {
+    final chunks = <List<String>>[];
+    for (var i = 0; i < ids.length; i += size) {
+      chunks.add(ids.sublist(i, i + size > ids.length ? ids.length : i + size));
+    }
+    return chunks;
+  }
+
+  String _chatIdFor(String otherUserId) {
+    final user = _currentUser;
+    if (user == null) return '';
+    final ids = [user.uid, otherUserId]..sort();
+    return '${ids[0]}_${ids[1]}';
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _fetchUsersByIds(
+    List<String> ids,
+  ) async {
+    final result = <String, Map<String, dynamic>>{};
+    for (final chunk in _chunkIds(ids)) {
+      final snap = await _firestore
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final doc in snap.docs) {
+        result[doc.id] = doc.data();
+      }
+    }
+    return result;
+  }
 
   Future<List<_ChatContact>> _buildContacts(
     List<String> contactIds,
     Set<String> pinnedIds,
   ) async {
-    final futures = contactIds.map((id) async {
-      final doc = await _firestore.collection('users').doc(id).get();
-      if (!doc.exists) return null;
-      final data = doc.data() as Map<String, dynamic>;
+    final users = await _fetchUsersByIds(contactIds);
+    final chatDocs = await Future.wait(
+      contactIds.map((id) async {
+        final chatId = _chatIdFor(id);
+        if (chatId.isEmpty) return null;
+        final doc = await _firestore.collection('chats').doc(chatId).get();
+        return doc.exists ? doc : null;
+      }),
+    );
+
+    final chatMap = <String, DocumentSnapshot>{};
+    for (final doc in chatDocs.whereType<DocumentSnapshot>()) {
+      chatMap[doc.id] = doc;
+    }
+
+    final contacts = users.entries.map((entry) {
+      final data = entry.value;
       final displayName = (data['name'] as String?)?.trim().isNotEmpty == true
           ? data['name'] as String
           : data['email'] as String? ?? 'Người dùng';
+      final chatId = _chatIdFor(entry.key);
+      final chatDoc = chatMap[chatId];
+      final chatData = chatDoc != null
+          ? chatDoc.data() as Map<String, dynamic>?
+          : null;
+      final lastMessage = chatData?['lastMessage'] as String? ?? '';
+      final lastMessageSenderId =
+          chatData?['lastMessageSenderId'] as String? ?? '';
+      final lastMessageReadBy =
+          (chatData?['lastMessageReadBy'] as List?)?.cast<String>() ?? const [];
+      final updatedAt = chatData?['updatedAt'] as Timestamp?;
+      final isUnread =
+          lastMessage.isNotEmpty &&
+          lastMessageSenderId.isNotEmpty &&
+          lastMessageSenderId != _currentUser?.uid &&
+          !lastMessageReadBy.contains(_currentUser?.uid);
+
       return _ChatContact(
-        userId: id,
+        userId: entry.key,
         name: displayName,
+        email: data['email'] as String? ?? '',
         avatarUrl: data['avatarUrl'] as String?,
         bio: data['bio'] as String? ?? '',
-        isPinned: pinnedIds.contains(id),
+        isPinned: pinnedIds.contains(entry.key),
+        lastMessage: lastMessage,
+        lastMessageAt: updatedAt,
+        isUnread: isUnread,
       );
     }).toList();
-
-    final contacts = (await Future.wait(
-      futures,
-    )).whereType<_ChatContact>().toList();
 
     contacts.sort((a, b) {
       if (a.isPinned != b.isPinned) {
         return a.isPinned ? -1 : 1;
+      }
+      final aTime =
+          a.lastMessageAt?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime =
+          b.lastMessageAt?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+      if (aTime != bTime) {
+        return bTime.compareTo(aTime);
       }
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
@@ -132,67 +212,122 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
                   }
 
                   final contacts = contactsSnapshot.data ?? [];
+                  final filtered = _searchTerm.isEmpty
+                      ? contacts
+                      : contacts
+                            .where(
+                              (c) =>
+                                  c.name.toLowerCase().contains(_searchTerm) ||
+                                  c.email.toLowerCase().contains(_searchTerm) ||
+                                  c.bio.toLowerCase().contains(_searchTerm),
+                            )
+                            .toList();
 
-                  if (contacts.isEmpty) {
+                  if (filtered.isEmpty) {
                     return const Center(
                       child: Text('Không tìm thấy danh bạ hợp lệ.'),
                     );
                   }
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: contacts.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final contact = contacts[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage:
-                              contact.avatarUrl != null &&
-                                  contact.avatarUrl!.isNotEmpty
-                              ? NetworkImage(contact.avatarUrl!)
-                              : null,
-                          child:
-                              contact.avatarUrl == null ||
-                                  contact.avatarUrl!.isEmpty
-                              ? const Icon(Icons.person)
-                              : null,
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                        title: Text(contact.name),
-                        subtitle: contact.bio.isNotEmpty
-                            ? Text(
-                                contact.bio,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            : null,
-                        trailing: IconButton(
-                          icon: Icon(
-                            contact.isPinned
-                                ? Icons.push_pin
-                                : Icons.push_pin_outlined,
-                            color: contact.isPinned
-                                ? Colors.orange
-                                : Colors.grey,
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.search),
+                            hintText: 'Tìm kiếm người đã theo dõi để chat',
+                            border: OutlineInputBorder(),
+                            isDense: true,
                           ),
-                          onPressed: () =>
-                              _togglePin(contact.userId, contact.isPinned),
+                          onChanged: (value) {
+                            _debounce?.cancel();
+                            _debounce = Timer(
+                              const Duration(milliseconds: 250),
+                              () {
+                                setState(
+                                  () => _searchTerm = value.toLowerCase(),
+                                );
+                              },
+                            );
+                          },
                         ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatThreadScreen(
-                                contactId: contact.userId,
-                                contactName: contact.name,
-                                contactAvatarUrl: contact.avatarUrl,
+                      ),
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: filtered.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final contact = filtered[index];
+                            final lastMsg = contact.lastMessage;
+                            final subtitle = lastMsg.isNotEmpty
+                                ? '${contact.isUnread ? '[Chưa đọc] ' : ''}$lastMsg'
+                                : (contact.bio.isNotEmpty
+                                      ? contact.bio
+                                      : contact.email);
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundImage:
+                                    contact.avatarUrl != null &&
+                                        contact.avatarUrl!.isNotEmpty
+                                    ? NetworkImage(contact.avatarUrl!)
+                                    : null,
+                                child:
+                                    contact.avatarUrl == null ||
+                                        contact.avatarUrl!.isEmpty
+                                    ? const Icon(Icons.person)
+                                    : null,
                               ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                              title: Text(contact.name),
+                              subtitle: subtitle.isNotEmpty
+                                  ? Text(
+                                      subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: contact.isUnread
+                                          ? const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            )
+                                          : null,
+                                    )
+                                  : null,
+                              trailing: IconButton(
+                                icon: Icon(
+                                  contact.isPinned
+                                      ? Icons.push_pin
+                                      : Icons.push_pin_outlined,
+                                  color: contact.isPinned
+                                      ? Colors.orange
+                                      : Colors.grey,
+                                ),
+                                onPressed: () => _togglePin(
+                                  contact.userId,
+                                  contact.isPinned,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatThreadScreen(
+                                      contactId: contact.userId,
+                                      contactName: contact.name,
+                                      contactAvatarUrl: contact.avatarUrl,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   );
                 },
               );
@@ -207,15 +342,23 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
 class _ChatContact {
   final String userId;
   final String name;
+  final String email;
   final String? avatarUrl;
   final String bio;
   final bool isPinned;
+  final String lastMessage;
+  final Timestamp? lastMessageAt;
+  final bool isUnread;
 
   _ChatContact({
     required this.userId,
     required this.name,
+    required this.email,
     required this.avatarUrl,
     required this.bio,
     required this.isPinned,
+    required this.lastMessage,
+    required this.lastMessageAt,
+    required this.isUnread,
   });
 }

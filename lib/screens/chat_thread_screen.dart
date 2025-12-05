@@ -50,11 +50,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         'text': text,
         'senderId': user.uid,
         'createdAt': FieldValue.serverTimestamp(),
+        'readBy': [user.uid], // người gửi mặc định đã đọc
       });
 
       await chatDoc.set({
         'participants': [user.uid, widget.contactId],
         'lastMessage': text,
+        'lastMessageSenderId': user.uid,
+        'lastMessageReadBy': [user.uid],
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -69,6 +72,35 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       if (mounted) {
         setState(() => _isSending = false);
       }
+    }
+  }
+
+  Future<void> _markMessagesAsRead(
+    List<QueryDocumentSnapshot> messages,
+    String userId,
+  ) async {
+    int count = 0;
+    final batch = _firestore.batch();
+    for (final doc in messages) {
+      final data = doc.data() as Map<String, dynamic>;
+      final senderId = data['senderId'] as String? ?? '';
+      if (senderId == userId) continue;
+      final readBy = (data['readBy'] as List?)?.cast<String>() ?? [];
+      if (readBy.contains(userId)) continue;
+      batch.update(doc.reference, {
+        'readBy': FieldValue.arrayUnion([userId]),
+      });
+      count++;
+      if (count >= 20) break; // tránh batch quá lớn mỗi lần build
+    }
+
+    if (count > 0) {
+      await batch.commit();
+      // đồng bộ trạng thái đọc với chat doc cho badge
+      final chatDoc = _firestore.collection('chats').doc(_chatId);
+      await chatDoc.set({
+        'lastMessageReadBy': FieldValue.arrayUnion([userId]),
+      }, SetOptions(merge: true));
     }
   }
 
@@ -136,6 +168,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 }
 
                 final messages = snapshot.data!.docs;
+                // Đánh dấu đã đọc cho các tin nhắn chưa đọc của đối phương
+                _markMessagesAsRead(messages, userId);
 
                 return ListView.builder(
                   reverse: true,
@@ -148,6 +182,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     final senderId = messageData['senderId'] as String? ?? '';
                     final isMe = senderId == userId;
                     final createdAt = messageData['createdAt'] as Timestamp?;
+                    final readBy =
+                        (messageData['readBy'] as List?)?.cast<String>() ?? [];
+                    final isReadByOther =
+                        isMe && readBy.contains(widget.contactId);
 
                     return Align(
                       alignment: isMe
@@ -196,6 +234,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                       : Colors.grey.shade600,
                                 ),
                               ),
+                              if (isMe)
+                                Text(
+                                  isReadByOther ? 'Đã đọc' : 'Đã gửi',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isMe
+                                        ? Colors.white70
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
                             ],
                           ),
                         ),

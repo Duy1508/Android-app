@@ -1,10 +1,35 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class FollowersListScreen extends StatelessWidget {
   final String userId;
 
   const FollowersListScreen({Key? key, required this.userId}) : super(key: key);
+
+  // Chunk an iterable into fixed-size lists to use with whereIn (max 10).
+  List<List<String>> _chunkIds(List<String> ids, {int size = 10}) {
+    final chunks = <List<String>>[];
+    for (var i = 0; i < ids.length; i += size) {
+      chunks.add(ids.sublist(i, i + size > ids.length ? ids.length : i + size));
+    }
+    return chunks;
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _fetchUsersByIds(
+    List<String> ids,
+  ) async {
+    final result = <String, Map<String, dynamic>>{};
+    for (final chunk in _chunkIds(ids)) {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final doc in snap.docs) {
+        result[doc.id] = doc.data();
+      }
+    }
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,43 +38,59 @@ class FollowersListScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('followers')
-            .doc(userId)
-            .collection('userFollowers')
+            .where('followingId', isEqualTo: userId)
+            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final followers = snapshot.data!.docs;
-          if (followers.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text('Chưa có người theo dõi nào'));
           }
-          return ListView.builder(
-            itemCount: followers.length,
-            itemBuilder: (context, index) {
-              final followerId = followers[index].id;
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(followerId)
-                    .get(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) return Container();
-                  final user =
-                      userSnapshot.data!.data() as Map<String, dynamic>;
+
+          final followerIds = snapshot.data!.docs
+              .map((doc) => (doc.data() as Map<String, dynamic>)['followerId'])
+              .whereType<String>()
+              .toList();
+
+          if (followerIds.isEmpty) {
+            return const Center(child: Text('Chưa có người theo dõi nào'));
+          }
+
+          return FutureBuilder<Map<String, Map<String, dynamic>>>(
+            future: _fetchUsersByIds(followerIds),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final users = userSnapshot.data ?? {};
+              return ListView.builder(
+                itemCount: followerIds.length,
+                itemBuilder: (context, index) {
+                  final followerId = followerIds[index];
+                  final user = users[followerId];
+
+                  if (user == null) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final avatarUrl = user['avatarUrl'] as String? ?? '';
+                  final name = user['name'] as String? ?? '';
+                  final email = user['email'] as String? ?? '';
+
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundImage:
-                          user['avatarUrl'] != null && user['avatarUrl'] != ''
-                          ? NetworkImage(user['avatarUrl'])
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? NetworkImage(avatarUrl)
                           : null,
-                      child:
-                          user['avatarUrl'] == null || user['avatarUrl'] == ''
+                      child: avatarUrl.isEmpty
                           ? const Icon(Icons.person)
                           : null,
                     ),
-                    title: Text(user['name'] ?? ''),
-                    subtitle: Text(user['email'] ?? ''),
+                    title: Text(name),
+                    subtitle: email.isNotEmpty ? Text(email) : null,
                   );
                 },
               );
