@@ -32,7 +32,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() => isLoading = true);
     try {
-      final isFollowing = await _followService.checkIfFollowing(currentUser!.uid, uid);
+      final isFollowing = await _followService.checkIfFollowing(
+        currentUser!.uid,
+        uid,
+      );
+
       if (isFollowing) {
         await _followService.unfollowUser(currentUser!.uid, uid);
       } else {
@@ -45,26 +49,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
+  Future<bool> isCurrentUserFollower(String postOwnerId) async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return false;
 
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
+    // Nếu là chính chủ thì cho phép luôn
+    if (currentUserId == postOwnerId) return true;
 
-    if (difference.inDays > 7) {
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays} ngày trước';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} giờ trước';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} phút trước';
-    } else {
-      return 'Vừa xong';
-    }
+    // Kiểm tra document trong collection followers
+    final docId = '${currentUserId}_$postOwnerId';
+    final doc = await FirebaseFirestore.instance
+        .collection('followers')
+        .doc(docId)
+        .get();
+
+    return doc.exists;
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +80,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: widget.userId != null,
-        title: const Text('Trang cá nhân', style: TextStyle(color: Colors.black)),
+        title: const Text(
+          'Trang cá nhân',
+          style: TextStyle(color: Colors.black),
+        ),
         centerTitle: true,
       ),
       body: FutureBuilder<DocumentSnapshot>(
@@ -93,37 +102,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 24,
+                ),
                 child: Column(
                   children: [
                     CircleAvatar(
                       radius: 50,
                       backgroundColor: Colors.grey.shade300,
-                      backgroundImage: avatarUrl != null && avatarUrl != '' ? NetworkImage(avatarUrl) : null,
-                      child: avatarUrl == null || avatarUrl == '' ? const Icon(Icons.person, size: 50, color: Colors.white) : null,
+                      backgroundImage: avatarUrl != null && avatarUrl != ''
+                          ? NetworkImage(avatarUrl)
+                          : null,
+                      child: avatarUrl == null || avatarUrl == ''
+                          ? const Icon(
+                        Icons.person,
+                        size: 50,
+                        color: Colors.white,
+                      )
+                          : null,
                     ),
                     const SizedBox(height: 16),
-                    Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(email, style: const TextStyle(color: Colors.grey)),
                     const SizedBox(height: 8),
                     Text(bio, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
-
-                    // Followers & Following
+                    // Hiển thị số followers và following
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         StreamBuilder<int>(
                           stream: _followService.getFollowersCountStream(uid),
                           builder: (context, snapshot) {
-                            final followersCount = snapshot.data ?? data['followersCount'] ?? 0;
+                            final followersCount =
+                                snapshot.data ?? data['followersCount'] ?? 0;
                             return GestureDetector(
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => FollowersListScreen(userId: uid),
+                                    builder: (_) =>
+                                        FollowersListScreen(userId: uid),
                                   ),
                                 );
                               },
@@ -131,9 +158,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 children: [
                                   Text(
                                     followersCount.toString(),
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                  const Text('Người theo dõi', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  const Text(
+                                    'Người theo dõi',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                                 ],
                               ),
                             );
@@ -143,23 +179,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         StreamBuilder<int>(
                           stream: _followService.getFollowingCountStream(uid),
                           builder: (context, snapshot) {
-                            final followingCount = snapshot.data ?? data['followingCount'] ?? 0;
+                            final followingCount =
+                                snapshot.data ?? data['followingCount'] ?? 0;
                             return GestureDetector(
                               onTap: () {
                                 Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => FollowingListScreen(userId: uid),
-                                  ),
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          FollowingListScreen(userId: uid),
+                                    ),
                                 );
                               },
                               child: Column(
                                 children: [
                                   Text(
                                     followingCount.toString(),
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                  const Text('Đang theo dõi', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  const Text(
+                                    'Đang theo dõi',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                                 ],
                               ),
                             );
@@ -167,10 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 24),
-
-                    // Actions
                     if (widget.userId == null)
                       Row(
                         children: [
@@ -180,29 +224,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => EditProfileScreen(userId: uid),
+                                    builder: (_) =>
+                                        EditProfileScreen(userId: uid),
                                   ),
                                 );
                               },
-                              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.black)),
-                              child: const Text('Edit Profile', style: TextStyle(color: Colors.black)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.black),
+                              ),
+                              child: const Text(
+                                'Edit Profile',
+                                style: TextStyle(color: Colors.black),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () {
-                                // TODO: Navigate to archive
+                                // TODO: Chuyển sang trang lưu trữ
                               },
-                              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.black)),
-                              child: const Text('View Archive', style: TextStyle(color: Colors.black)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.black),
+                              ),
+                              child: const Text(
+                                'View Archive',
+                                style: TextStyle(color: Colors.black),
+                              ),
                             ),
                           ),
                         ],
                       )
                     else
                       StreamBuilder<bool>(
-                        stream: _followService.isFollowingStream(currentUser?.uid ?? '', uid),
+                        stream: _followService.isFollowingStream(
+                          currentUser?.uid ?? '',
+                          uid,
+                        ),
                         builder: (context, snapshot) {
                           final isFollowing = snapshot.data ?? false;
                           return SizedBox(
@@ -210,7 +268,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: ElevatedButton(
                               onPressed: isLoading ? null : toggleFollow,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: isFollowing ? Colors.grey : Colors.blue,
+                                backgroundColor: isFollowing
+                                    ? Colors.grey
+                                    : Colors.blue,
                                 foregroundColor: Colors.white,
                               ),
                               child: isLoading
@@ -219,10 +279,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor:
+                                  AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                               )
-                                  : Text(isFollowing ? 'Bỏ theo dõi' : 'Theo dõi'),
+                                  : Text(
+                                isFollowing ? 'Bỏ theo dõi' : 'Theo dõi',
+                              ),
                             ),
                           );
                         },
@@ -230,258 +295,353 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-
               const Divider(),
-
               // Header "Bài viết"
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
-                    const Text('Bài viết', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Bài viết',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('posts')
-                          .where('userId', isEqualTo: uid)
+                          .where('userId', isEqualTo: uid) // firebase usedId
                           .snapshots(),
                       builder: (context, snapshot) {
                         final postCount = snapshot.data?.docs.length ?? 0;
-                        return Text('($postCount)', style: const TextStyle(fontSize: 16, color: Colors.grey));
+                        return Text(
+                          '($postCount)',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        );
                       },
                     ),
                   ],
                 ),
               ),
-
               // Danh sách bài viết
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('posts')
-                      .where('userId', isEqualTo: uid)
-                      .orderBy('createdAt', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
+                child: FutureBuilder<bool>(
+                  // Truyền uid của chủ bài viết vào hàm kiểm tra
+                  future: isCurrentUserFollower(uid),
+                  builder: (context, snap) {
+                    if (!snap.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
-
-                    if (snapshot.hasError) {
-                      final error = snapshot.error.toString();
-                      final isIndexError = error.contains('index') || error.contains('FAILED_PRECONDITION');
-
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
-                              const SizedBox(height: 16),
-                              Text(
-                                isIndexError ? 'Cần tạo index trong Firestore' : 'Đã xảy ra lỗi',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                isIndexError
-                                    ? 'Vui lòng kiểm tra Firebase Console để tạo index cần thiết.\nXem file FIX_FIRESTORE_ERRORS.md để biết chi tiết.'
-                                    : error,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    if (!snap.data!) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.article_outlined, size: 64, color: Colors.grey.shade400),
-                            const SizedBox(height: 16),
-                            Text('Chưa có bài viết nào', style: TextStyle(fontSize: 16, color: Colors.grey.shade600)),
+                          children: const [
+                            Icon(Icons.lock_outline, size: 48, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text(
+                              'Chỉ những người theo dõi mới có thể xem bài viết này.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey, fontSize: 16),
+                            ),
                           ],
                         ),
                       );
                     }
 
-                    final posts = snapshot.data!.docs;
+                    // Nếu đã follow hoặc là chính chủ thì hiển thị bài viết
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('posts')
+                          .where('userId', isEqualTo: uid)
+                          .orderBy('createdAt', descending: true)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
 
-                    return RefreshIndicator(
-                      onRefresh: () async {},
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        itemCount: posts.length,
-                        itemBuilder: (context, index) {
-                          final postDoc = posts[index];
-                          final post = postDoc.data() as Map<String, dynamic>;
-                          final content = post['content'] ?? '';
-                          final imageUrl = post['imageUrl'];
-                          final createdAt = post['createdAt'] != null ? (post['createdAt'] as Timestamp).toDate() : null;
+                        if (snapshot.hasError) {
+                          final error = snapshot.error.toString();
+                          final isIndexError =
+                              error.contains('index') || error.contains('FAILED_PRECONDITION');
 
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 1,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.error_outline,
+                                      size: 64, color: Colors.red.shade300),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    isIndexError
+                                        ? 'Cần tạo index trong Firestore'
+                                        : 'Đã xảy ra lỗi',
+                                    style: const TextStyle(
+                                        fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    isIndexError
+                                        ? 'Vui lòng kiểm tra Firebase Console để tạo index cần thiết.\nXem file FIX_FIRESTORE_ERRORS.md để biết chi tiết.'
+                                        : error,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.grey.shade600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return Center(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // Header với avatar và tên
-                                ListTile(
-                                  leading: CircleAvatar(
-                                    radius: 20,
-                                    backgroundColor: Colors.grey.shade300,
-                                    backgroundImage: avatarUrl != null && avatarUrl != '' ? NetworkImage(avatarUrl) : null,
-                                    child: avatarUrl == null || avatarUrl == '' ? const Icon(Icons.person, size: 20) : null,
-                                  ),
-                                  title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text(
-                                    createdAt != null ? _formatDateTime(createdAt) : '',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  trailing: currentUser != null && currentUser?.uid == uid
-                                      ? PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert),
-                                    onSelected: (value) async {
-                                      if (value == 'delete') {
-                                        final confirm = await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: const Text('Xóa bài viết'),
-                                            content: const Text('Bạn có chắc muốn xóa bài viết này?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, false),
-                                                child: const Text('Hủy'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, true),
-                                                child: const Text('Xóa'),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                        if (confirm == true && mounted) {
-                                          await postDoc.reference.delete();
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Đã xóa bài viết')),
-                                          );
-                                        }
-                                      } else if (value == 'edit') {
-                                        final controller = TextEditingController(text: content);
-                                        final confirm = await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: const Text('Sửa bài viết'),
-                                            content: TextField(
-                                              controller: controller,
-                                              maxLines: 5,
-                                              decoration: const InputDecoration(
-                                                hintText: 'Nhập nội dung mới...',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, false),
-                                                child: const Text('Hủy'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, true),
-                                                child: const Text('Lưu'),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                        if (confirm == true && mounted) {
-                                          await postDoc.reference.update({'content': controller.text});
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Đã cập nhật bài viết')),
-                                          );
-                                        }
-                                      }
-                                    },
-                                    itemBuilder: (context) => const [
-                                      PopupMenuItem(
-                                        value: 'edit',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.edit, size: 20),
-                                            SizedBox(width: 8),
-                                            Text('Sửa bài viết'),
-                                          ],
-                                        ),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'delete',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.delete, size: 20, color: Colors.red),
-                                            SizedBox(width: 8),
-                                            Text('Xóa bài viết', style: TextStyle(color: Colors.red)),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                      : null,
+                                Icon(Icons.article_outlined,
+                                    size: 64, color: Colors.grey.shade400),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Chưa có bài viết nào',
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.grey.shade600),
                                 ),
-
-                                // Nội dung bài viết
-                                if (content.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Text(content, style: const TextStyle(fontSize: 14)),
-                                  ),
-
-                                // Hình ảnh
-                                if (imageUrl != null && imageUrl != '')
-                                  Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        imageUrl,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            height: 200,
-                                            color: Colors.grey.shade300,
-                                            child: const Center(
-                                              child: Icon(Icons.broken_image, color: Colors.grey),
-                                            ),
-                                          );
-                                        },
-                                        loadingBuilder: (context, child, loadingProgress) {
-                                          if (loadingProgress == null) return child;
-                                          return Container(
-                                            height: 200,
-                                            color: Colors.grey.shade200,
-                                            child: const Center(child: CircularProgressIndicator()),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
                               ],
                             ),
                           );
-                        },
-                      ),
+                        }
+
+                        final posts = snapshot.data!.docs;
+
+                        return RefreshIndicator(
+                          onRefresh: () async {
+                            // Stream sẽ tự động refresh
+                          },
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            itemCount: posts.length,
+                            itemBuilder: (context, index) {
+                              final postDoc = posts[index];
+                              final post = postDoc.data() as Map<String, dynamic>;
+                              final content = post['content'] ?? '';
+                              final imageUrl = post['imageUrl'];
+                              final createdAt = post['createdAt'] != null
+                                  ? (post['createdAt'] as Timestamp).toDate()
+                                  : null;
+
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                elevation: 1,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Header với avatar và tên
+                                    ListTile(
+                                      leading: CircleAvatar(
+                                        radius: 20,
+                                        backgroundColor: Colors.grey.shade300,
+                                        backgroundImage: avatarUrl != null &&
+                                            avatarUrl.isNotEmpty
+                                            ? NetworkImage(avatarUrl)
+                                            : null,
+                                        child: avatarUrl == null || avatarUrl.isEmpty
+                                            ? const Icon(Icons.person, size: 20)
+                                            : null,
+                                      ),
+                                      title: Text(
+                                        name,
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      subtitle: Text(
+                                        createdAt != null ? _formatDateTime(createdAt) : '',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      trailing: currentUser != null &&
+                                          currentUser?.uid == uid
+                                          ? PopupMenuButton<String>(
+                                        icon: const Icon(Icons.more_vert),
+                                        onSelected: (value) async {
+                                          if (value == 'delete') {
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text('Xóa bài viết'),
+                                                content: const Text(
+                                                    'Bạn có chắc muốn xóa bài viết này?'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context, false),
+                                                    child: const Text('Hủy'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context, true),
+                                                    child: const Text('Xóa'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true && context.mounted) {
+                                              await postDoc.reference.delete();
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(const SnackBar(
+                                                content: Text('Đã xóa bài viết'),
+                                              ));
+                                            }
+                                          } else if (value == 'edit') {
+                                            final controller =
+                                            TextEditingController(text: content);
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text('Sửa bài viết'),
+                                                content: TextField(
+                                                  controller: controller,
+                                                  maxLines: 5,
+                                                  decoration: const InputDecoration(
+                                                    hintText: 'Nhập nội dung mới...',
+                                                    border: OutlineInputBorder(),
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context, false),
+                                                    child: const Text('Hủy'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context, true),
+                                                    child: const Text('Lưu'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true && context.mounted) {
+                                              await postDoc.reference.update({
+                                                'content': controller.text,
+                                              });
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(const SnackBar(
+                                                content: Text('Đã cập nhật bài viết'),
+                                              ));
+                                            }
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.edit, size: 20),
+                                                SizedBox(width: 8),
+                                                Text('Sửa bài viết'),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete,
+                                                    size: 20, color: Colors.red),
+                                                SizedBox(width: 8),
+                                                Text('Xóa bài viết',
+                                                    style: TextStyle(color: Colors.red)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                          : null,
+                                    ),
+                                    if (content.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        child: Text(content,
+                                            style: const TextStyle(fontSize: 14)),
+                                      ),
+                                    if (imageUrl != null && imageUrl.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            imageUrl,
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Container(
+                                                height: 200,
+                                                color: Colors.grey.shade300,
+                                                child: const Center(
+                                                  child: Icon(Icons.broken_image,
+                                                      color: Colors.grey),
+                                                ),
+                                              );
+                                            },
+                                            loadingBuilder:
+                                                (context, child, loadingProgress) {
+                                              if (loadingProgress == null) return child;
+                                              return Container(
+                                                height: 200,
+                                                color: Colors.grey.shade200,
+                                                child: const Center(
+                                                  child: CircularProgressIndicator(),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
-              ),
+              )
             ],
           );
         },
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 7) {
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} ngày trước';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} giờ trước';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} phút trước';
+    } else {
+      return 'Vừa xong';
+    }
   }
 }

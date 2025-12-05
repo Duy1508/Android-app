@@ -5,6 +5,7 @@ class FollowService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final NotificationService _notificationService = NotificationService();
 
+  // Collection references
   CollectionReference get _followersRef => _firestore.collection('followers');
   CollectionReference get _usersRef => _firestore.collection('users');
 
@@ -21,25 +22,14 @@ class FollowService {
     }
 
     try {
-      // Tạo document trong collection followers toàn cục
+      // Tạo document trong collection followers
       await _followersRef.doc(docId).set({
         'followerId': followerId,
         'followingId': followingId,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Thêm vào subcollection của user
-      await _usersRef.doc(followingId).collection('followers').doc(followerId).set({
-        'userId': followerId,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      await _usersRef.doc(followerId).collection('following').doc(followingId).set({
-        'userId': followingId,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // Cập nhật counters
+      // Cập nhật counters trong users
       await _updateCounters(followerId, followingId, increment: true);
 
       // Tạo notification
@@ -62,14 +52,7 @@ class FollowService {
     }
 
     try {
-      // Xóa document trong collection followers toàn cục
       await _followersRef.doc(docId).delete();
-
-      // Xóa trong subcollection
-      await _usersRef.doc(followingId).collection('followers').doc(followerId).delete();
-      await _usersRef.doc(followerId).collection('following').doc(followingId).delete();
-
-      // Cập nhật counters
       await _updateCounters(followerId, followingId, increment: false);
     } catch (e) {
       throw Exception('Lỗi khi bỏ theo dõi: $e');
@@ -84,52 +67,65 @@ class FollowService {
     return doc.exists;
   }
 
+  /// Stream trạng thái follow
   Stream<bool> isFollowingStream(String followerId, String followingId) {
     if (followerId == followingId) return Stream.value(false);
     final docId = '${followerId}_$followingId';
     return _followersRef.doc(docId).snapshots().map((doc) => doc.exists);
   }
 
-  /// Lấy danh sách followers
+  /// Stream danh sách followers của một user
   Stream<QuerySnapshot> getFollowersStream(String userId) {
-    return _usersRef.doc(userId).collection('followers').orderBy('createdAt', descending: true).snapshots();
+    return _followersRef
+        .where('followingId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
-  /// Lấy danh sách following
+  /// Stream danh sách following của một user
   Stream<QuerySnapshot> getFollowingStream(String userId) {
-    return _usersRef.doc(userId).collection('following').orderBy('createdAt', descending: true).snapshots();
+    return _followersRef
+        .where('followerId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
-  /// Đếm số lượng followers
+  /// Lấy số lượng followers
   Future<int> getFollowersCount(String userId) async {
-    final snapshot = await _usersRef.doc(userId).collection('followers').get();
+    final snapshot =
+    await _followersRef.where('followingId', isEqualTo: userId).get();
     return snapshot.docs.length;
   }
 
-  /// Đếm số lượng following
+  /// Lấy số lượng following
   Future<int> getFollowingCount(String userId) async {
-    final snapshot = await _usersRef.doc(userId).collection('following').get();
+    final snapshot =
+    await _followersRef.where('followerId', isEqualTo: userId).get();
     return snapshot.docs.length;
   }
 
   /// Stream số lượng followers
   Stream<int> getFollowersCountStream(String userId) {
-    return _usersRef.doc(userId).snapshots().map((doc) {
-      final data = doc.data() as Map<String, dynamic>?;
-      return data?['followersCount'] ?? 0;
-    });
+    return _followersRef
+        .where('followingId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
   }
 
   /// Stream số lượng following
   Stream<int> getFollowingCountStream(String userId) {
-    return _usersRef.doc(userId).snapshots().map((doc) {
-      final data = doc.data() as Map<String, dynamic>?;
-      return data?['followingCount'] ?? 0;
-    });
+    return _followersRef
+        .where('followerId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
   }
 
-  /// Cập nhật counters
-  Future<void> _updateCounters(String followerId, String followingId, {required bool increment}) async {
+  /// Cập nhật counters trong users document
+  Future<void> _updateCounters(
+      String followerId,
+      String followingId, {
+        required bool increment,
+      }) async {
     final batch = _firestore.batch();
 
     final followerRef = _usersRef.doc(followerId);

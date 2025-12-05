@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/notification_service.dart';
 import 'profile_screen.dart';
-import 'post_detail_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -16,7 +15,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final NotificationService _notificationService = NotificationService();
   final currentUser = FirebaseAuth.instance.currentUser;
 
-  // Helpers: text + icon + color theo loại thông báo
   String _getNotificationMessage(String type, String fromUserName) {
     switch (type) {
       case 'follow':
@@ -56,49 +54,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  // Định dạng thời gian kiểu tương đối
-  String _formatTimestamp(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 7) {
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays} ngày trước';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} giờ trước';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} phút trước';
-    } else {
-      return 'Vừa xong';
-    }
-  }
-
-  // Khi chạm vào thông báo: mark read + điều hướng
-  Future<void> _handleNotificationTap(Map<String, dynamic> notification) async {
-    final notifId = notification['id'] as String?;
-    final isRead = notification['isRead'] == true;
-    final type = notification['type'] as String? ?? '';
-    final fromUserId = notification['fromUserId'] as String?;
-    final postId = notification['postId'] as String?;
-
-    if (!isRead && notifId != null) {
-      await _notificationService.markAsRead(notifId);
+  void _handleNotificationTap(Map<String, dynamic> notification) async {
+    // Đánh dấu đã đọc
+    if (!notification['isRead']) {
+      await _notificationService.markAsRead(notification['id']);
     }
 
-    if (type == 'follow' && fromUserId != null && fromUserId.isNotEmpty) {
+    // Navigate đến profile hoặc post
+    final type = notification['type'];
+    final fromUserId = notification['fromUserId'];
+    final postId = notification['postId'];
+
+    if (type == 'follow') {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => ProfileScreen(userId: fromUserId)),
+        MaterialPageRoute(
+          builder: (_) => ProfileScreen(userId: fromUserId),
+        ),
       );
-      return;
-    }
-
-    if (postId != null && postId.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => PostDetailScreen(postId: postId)),
-      );
+    } else if (postId != null) {
+      // TODO: Navigate to post detail screen
+      // Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(postId: postId)));
     }
   }
 
@@ -114,12 +90,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(
         title: const Text('Thông báo'),
         actions: [
-          // Nút đánh dấu tất cả là đã đọc (chỉ hiện khi có thông báo chưa đọc)
           StreamBuilder<int>(
             stream: _notificationService.getUnreadCountStream(currentUser!.uid),
             builder: (context, snapshot) {
               final unreadCount = snapshot.data ?? 0;
               if (unreadCount == 0) return const SizedBox.shrink();
+
               return TextButton(
                 onPressed: () async {
                   await _notificationService.markAllAsRead(currentUser!.uid);
@@ -135,36 +111,49 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      body: StreamBuilder<QuerySnapshot>(
         stream: _notificationService.getNotificationsStream(currentUser!.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Lỗi truy vấn (ví dụ cần tạo index)
           if (snapshot.hasError) {
             final error = snapshot.error.toString();
-            final isIndexError = error.contains('index') || error.contains('FAILED_PRECONDITION');
+            final isIndexError = error.contains('index') ||
+                error.contains('FAILED_PRECONDITION');
+
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.shade300,
+                    ),
                     const SizedBox(height: 16),
                     Text(
-                      isIndexError ? 'Cần tạo index trong Firestore' : 'Đã xảy ra lỗi',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      isIndexError
+                          ? 'Cần tạo index trong Firestore'
+                          : 'Đã xảy ra lỗi',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       isIndexError
-                          ? 'Vui lòng vào Firebase Console tạo index cho truy vấn notifications.\n(Where userId + orderBy createdAt)'
+                          ? 'Vui lòng kiểm tra Firebase Console để tạo index cần thiết.\nXem file FIX_FIRESTORE_ERRORS.md để biết chi tiết.'
                           : error,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ],
                 ),
@@ -179,7 +168,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 children: [
                   Icon(Icons.notifications_none, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text('Chưa có thông báo nào', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  Text(
+                    'Chưa có thông báo nào',
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
                 ],
               ),
             );
@@ -188,20 +180,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           final notifications = snapshot.data!.docs;
 
           return RefreshIndicator(
-            onRefresh: () async => Future.value(), // Stream tự cập nhật
+            onRefresh: () async {
+              // Stream sẽ tự động cập nhật
+            },
             child: ListView.builder(
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final doc = notifications[index];
-                final data = doc.data();
-
-                final isRead = data['isRead'] == true;
-                final type = (data['type'] ?? '') as String;
-                final fromUserName = (data['fromUserName'] ?? 'Người dùng') as String;
-                final fromUserAvatar = (data['fromUserAvatar'] ?? '') as String;
-                final createdAt = data['createdAt'] is Timestamp
-                    ? (data['createdAt'] as Timestamp).toDate()
-                    : null;
+                final notification = doc.data() as Map<String, dynamic>;
+                final isRead = notification['isRead'] ?? false;
+                final type = notification['type'] ?? '';
+                final fromUserName = notification['fromUserName'] ?? 'Người dùng';
+                final fromUserAvatar = notification['fromUserAvatar'];
+                final createdAt = notification['createdAt'] as Timestamp?;
 
                 return Dismissible(
                   key: Key(doc.id),
@@ -212,30 +203,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     color: Colors.red,
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
-                  onDismissed: (direction) async {
-                    await _notificationService.deleteNotification(doc.id);
+                  onDismissed: (direction) {
+                    _notificationService.deleteNotification(doc.id);
                   },
                   child: InkWell(
-                    onTap: () => _handleNotificationTap({...data, 'id': doc.id}),
+                    onTap: () => _handleNotificationTap({
+                      ...notification,
+                      'id': doc.id,
+                    }),
                     child: Container(
                       color: isRead ? Colors.white : Colors.blue.shade50,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
-                          // Avatar hoặc icon theo loại
+                          // Avatar
                           CircleAvatar(
                             radius: 24,
                             backgroundColor: _getNotificationColor(type),
-                            backgroundImage: (fromUserAvatar.isNotEmpty)
+                            backgroundImage: fromUserAvatar != null && fromUserAvatar != ''
                                 ? NetworkImage(fromUserAvatar)
                                 : null,
-                            child: (fromUserAvatar.isEmpty)
-                                ? Icon(_getNotificationIcon(type), color: Colors.white, size: 24)
+                            child: fromUserAvatar == null || fromUserAvatar == ''
+                                ? Icon(
+                              _getNotificationIcon(type),
+                              color: Colors.white,
+                              size: 24,
+                            )
                                 : null,
                           ),
                           const SizedBox(width: 12),
-
-                          // Nội dung + thời gian
+                          // Content
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,22 +243,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 Text(
                                   _getNotificationMessage(type, fromUserName),
                                   style: TextStyle(
-                                    fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                                    fontWeight: isRead
+                                        ? FontWeight.normal
+                                        : FontWeight.bold,
                                     fontSize: 14,
                                   ),
                                 ),
                                 if (createdAt != null) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    _formatTimestamp(createdAt),
-                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                    _formatTimestamp(createdAt.toDate()),
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ],
                               ],
                             ),
                           ),
-
-                          // Chấm xanh cho chưa đọc
+                          // Unread indicator
                           if (!isRead)
                             Container(
                               width: 8,
@@ -279,5 +283,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         },
       ),
     );
+  }
+
+  String _formatTimestamp(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 7) {
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} ngày trước';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} giờ trước';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} phút trước';
+    } else {
+      return 'Vừa xong';
+    }
   }
 }
