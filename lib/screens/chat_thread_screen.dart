@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
 
 class ChatThreadScreen extends StatefulWidget {
   final String contactId;
@@ -19,6 +21,7 @@ class ChatThreadScreen extends StatefulWidget {
 }
 
 class _ChatThreadScreenState extends State<ChatThreadScreen> {
+  String? _selectedMessageId;
   final TextEditingController _messageController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final User? _currentUser = FirebaseAuth.instance.currentUser;
@@ -76,9 +79,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   }
 
   Future<void> _markMessagesAsRead(
-    List<QueryDocumentSnapshot> messages,
-    String userId,
-  ) async {
+      List<QueryDocumentSnapshot> messages,
+      String userId,
+      ) async {
     int count = 0;
     final batch = _firestore.batch();
     for (final doc in messages) {
@@ -129,13 +132,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           children: [
             CircleAvatar(
               backgroundImage:
-                  widget.contactAvatarUrl != null &&
-                      widget.contactAvatarUrl!.isNotEmpty
+              widget.contactAvatarUrl != null &&
+                  widget.contactAvatarUrl!.isNotEmpty
                   ? NetworkImage(widget.contactAvatarUrl!)
                   : null,
               child:
-                  widget.contactAvatarUrl == null ||
-                      widget.contactAvatarUrl!.isEmpty
+              widget.contactAvatarUrl == null ||
+                  widget.contactAvatarUrl!.isEmpty
                   ? const Icon(Icons.person)
                   : null,
             ),
@@ -176,78 +179,150 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final messageData =
-                        messages[index].data() as Map<String, dynamic>;
+                    final messageData = messages[index].data() as Map<String, dynamic>;
                     final text = messageData['text'] as String? ?? '';
                     final senderId = messageData['senderId'] as String? ?? '';
                     final isMe = senderId == userId;
                     final createdAt = messageData['createdAt'] as Timestamp?;
-                    final readBy =
-                        (messageData['readBy'] as List?)?.cast<String>() ?? [];
-                    final isReadByOther =
-                        isMe && readBy.contains(widget.contactId);
+                    final readBy = (messageData['readBy'] as List?)?.cast<String>() ?? [];
+                    final isReadByOther = isMe && readBy.contains(widget.contactId);
 
-                    return Align(
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.7,
-                        ),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isMe
-                                ? Colors.blueAccent
-                                : Colors.grey.shade200,
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(12),
-                              topRight: const Radius.circular(12),
-                              bottomLeft: Radius.circular(isMe ? 12 : 0),
-                              bottomRight: Radius.circular(isMe ? 0 : 12),
+                    final messageDate = createdAt?.toDate();
+
+                    // --- Separator ngày ---
+                    String? separatorLabel;
+                    bool showSeparator = false;
+                    if (messageDate != null) {
+                      separatorLabel = DateFormat('dd/MM').format(messageDate);
+                      if (index == messages.length - 1) {
+                        showSeparator = true;
+                      } else {
+                        final prevData = messages[index + 1].data() as Map<String, dynamic>;
+                        final prevCreatedAt = prevData['createdAt'] as Timestamp?;
+                        if (prevCreatedAt != null) {
+                          final prevDate = prevCreatedAt.toDate();
+                          if (prevDate.day != messageDate.day ||
+                              prevDate.month != messageDate.month ||
+                              prevDate.year != messageDate.year) {
+                            showSeparator = true;
+                          }
+                        }
+                      }
+                    }
+
+                    // --- Hiển thị giờ nếu cách tin trước ≥ 5 phút ---
+                    bool showTime = false;
+                    if (index == messages.length - 1) {
+                      showTime = true; // tin đầu tiên luôn hiển thị giờ
+                    } else {
+                      final prevData = messages[index + 1].data() as Map<String, dynamic>;
+                      final prevCreatedAt = prevData['createdAt'] as Timestamp?;
+                      if (prevCreatedAt != null && createdAt != null) {
+                        final prevDate = prevCreatedAt.toDate();
+                        final diff = prevDate.difference(messageDate!).inMinutes.abs();
+                        if (diff >= 5) {
+                          showTime = true;
+                        }
+                      }
+                    }
+
+                    return Column(
+                      children: [
+                        if (showSeparator && separatorLabel != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              separatorLabel,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade600,
+                              ),
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: isMe
-                                ? CrossAxisAlignment.end
-                                : CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                text,
-                                style: TextStyle(
-                                  color: isMe ? Colors.white : Colors.black,
-                                  fontSize: 15,
-                                ),
+                        if (showTime && messageDate != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              DateFormat('HH:mm').format(messageDate),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _formatTime(createdAt),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isMe
-                                      ? Colors.white70
-                                      : Colors.grey.shade600,
-                                ),
-                              ),
-                              if (isMe)
-                                Text(
-                                  isReadByOther ? 'Đã đọc' : 'Đã gửi',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isMe
-                                        ? Colors.white70
-                                        : Colors.grey.shade600,
+                            ),
+                          ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedMessageId = _selectedMessageId == messages[index].id
+                                  ? null
+                                  : messages[index].id;
+                            });
+                          },
+                          child: Align(
+                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Column(
+                              crossAxisAlignment:
+                              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                              children: [
+                                // Hiển thị giờ:phút chính xác khi tin nhắn được chọn
+                                if (_selectedMessageId == messages[index].id && createdAt != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 2),
+                                    child: Text(
+                                      DateFormat('dd/MM/yyyy HH:mm').format(createdAt.toDate()),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ),
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                                  ),
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isMe ? Colors.blueAccent : Colors.grey.shade200,
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(12),
+                                        topRight: const Radius.circular(12),
+                                        bottomLeft: Radius.circular(isMe ? 12 : 0),
+                                        bottomRight: Radius.circular(isMe ? 0 : 12),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          text,
+                                          style: TextStyle(
+                                            color: isMe ? Colors.white : Colors.black,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        if (isMe) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            isReadByOther ? 'Đã đọc' : 'Đã gửi',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     );
                   },
                 );
@@ -277,17 +352,17 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   ),
                   _isSending
                       ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                       : IconButton(
-                          icon: const Icon(
-                            Icons.send,
-                            color: Colors.blueAccent,
-                          ),
-                          onPressed: _sendMessage,
-                        ),
+                    icon: const Icon(
+                      Icons.send,
+                      color: Colors.blueAccent,
+                    ),
+                    onPressed: _sendMessage,
+                  ),
                 ],
               ),
             ),

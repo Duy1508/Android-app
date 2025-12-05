@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'editprofile_screen.dart';
 import '../services/follow_service.dart';
 import 'followers_list_screen.dart';
+import  'following_list-screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
@@ -53,17 +54,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
+  Future<bool> isCurrentUserFollower(String postOwnerId) async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return false;
 
-  Future<bool> isCurrentUserFollower() async {
-    if (currentUser == null || currentUser!.uid == uid) return true;
+    // Nếu là chính chủ thì cho phép luôn
+    if (currentUserId == postOwnerId) return true;
+
+    // Kiểm tra document trong collection followers
+    final docId = '${currentUserId}_$postOwnerId';
     final doc = await FirebaseFirestore.instance
         .collection('followers')
-        .doc(uid)
-        .collection('userFollowers')
-        .doc(currentUser!.uid)
+        .doc(docId)
         .get();
+
     return doc.exists;
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -109,10 +116,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : null,
                       child: avatarUrl == null || avatarUrl == ''
                           ? const Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Colors.white,
-                            )
+                        Icons.person,
+                        size: 50,
+                        color: Colors.white,
+                      )
                           : null,
                     ),
                     const SizedBox(height: 16),
@@ -176,7 +183,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 snapshot.data ?? data['followingCount'] ?? 0;
                             return GestureDetector(
                               onTap: () {
-                                // TODO: Navigate to following list
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        FollowingListScreen(userId: uid),
+                                  ),
+                                );
                               },
                               child: Column(
                                 children: [
@@ -262,19 +275,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               child: isLoading
                                   ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                      ),
-                                    )
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                  AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
                                   : Text(
-                                      isFollowing ? 'Bỏ theo dõi' : 'Theo dõi',
-                                    ),
+                                isFollowing ? 'Bỏ theo dõi' : 'Theo dõi',
+                              ),
                             ),
                           );
                         },
@@ -321,7 +334,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Danh sách bài viết
               Expanded(
                 child: FutureBuilder<bool>(
-                  future: isCurrentUserFollower(),
+                  // Truyền uid của chủ bài viết vào hàm kiểm tra
+                  future: isCurrentUserFollower(uid),
                   builder: (context, snap) {
                     if (!snap.hasData) {
                       return const Center(child: CircularProgressIndicator());
@@ -331,24 +345,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
-                            Icon(
-                              Icons.lock_outline,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
+                            Icon(Icons.lock_outline, size: 48, color: Colors.grey),
                             SizedBox(height: 16),
                             Text(
                               'Chỉ những người theo dõi mới có thể xem bài viết này.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 16,
-                              ),
+                              style: TextStyle(color: Colors.grey, fontSize: 16),
                             ),
                           ],
                         ),
                       );
                     }
+
+                    // Nếu đã follow hoặc là chính chủ thì hiển thị bài viết
                     return StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('posts')
@@ -356,18 +365,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           .orderBy('createdAt', descending: true)
                           .snapshots(),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
                         }
 
                         if (snapshot.hasError) {
                           final error = snapshot.error.toString();
                           final isIndexError =
-                              error.contains('index') ||
-                              error.contains('FAILED_PRECONDITION');
+                              error.contains('index') || error.contains('FAILED_PRECONDITION');
 
                           return Center(
                             child: Padding(
@@ -375,20 +380,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
-                                    Icons.error_outline,
-                                    size: 64,
-                                    color: Colors.red.shade300,
-                                  ),
+                                  Icon(Icons.error_outline,
+                                      size: 64, color: Colors.red.shade300),
                                   const SizedBox(height: 16),
                                   Text(
                                     isIndexError
                                         ? 'Cần tạo index trong Firestore'
                                         : 'Đã xảy ra lỗi',
                                     style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                        fontSize: 18, fontWeight: FontWeight.bold),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
@@ -397,9 +397,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         : error,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade600,
-                                    ),
+                                        fontSize: 14, color: Colors.grey.shade600),
                                   ),
                                 ],
                               ),
@@ -412,18 +410,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.article_outlined,
-                                  size: 64,
-                                  color: Colors.grey.shade400,
-                                ),
+                                Icon(Icons.article_outlined,
+                                    size: 64, color: Colors.grey.shade400),
                                 const SizedBox(height: 16),
                                 Text(
                                   'Chưa có bài viết nào',
                                   style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey.shade600,
-                                  ),
+                                      fontSize: 16, color: Colors.grey.shade600),
                                 ),
                               ],
                             ),
@@ -441,8 +434,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             itemCount: posts.length,
                             itemBuilder: (context, index) {
                               final postDoc = posts[index];
-                              final post =
-                                  postDoc.data() as Map<String, dynamic>;
+                              final post = postDoc.data() as Map<String, dynamic>;
                               final content = post['content'] ?? '';
                               final imageUrl = post['imageUrl'];
                               final createdAt = post['createdAt'] != null
@@ -463,236 +455,158 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       leading: CircleAvatar(
                                         radius: 20,
                                         backgroundColor: Colors.grey.shade300,
-                                        backgroundImage:
-                                            avatarUrl != null && avatarUrl != ''
+                                        backgroundImage: avatarUrl != null &&
+                                            avatarUrl.isNotEmpty
                                             ? NetworkImage(avatarUrl)
                                             : null,
-                                        child:
-                                            avatarUrl == null || avatarUrl == ''
+                                        child: avatarUrl == null || avatarUrl.isEmpty
                                             ? const Icon(Icons.person, size: 20)
                                             : null,
                                       ),
                                       title: Text(
                                         name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
                                       ),
                                       subtitle: Text(
-                                        createdAt != null
-                                            ? _formatDateTime(createdAt)
-                                            : '',
+                                        createdAt != null ? _formatDateTime(createdAt) : '',
                                         style: const TextStyle(fontSize: 12),
                                       ),
-                                      trailing:
-                                          currentUser != null &&
-                                              currentUser?.uid == uid
+                                      trailing: currentUser != null &&
+                                          currentUser?.uid == uid
                                           ? PopupMenuButton<String>(
-                                              icon: const Icon(Icons.more_vert),
-                                              onSelected: (value) async {
-                                                if (value == 'delete') {
-                                                  final confirm = await showDialog<bool>(
-                                                    context: context,
-                                                    builder: (context) =>
-                                                        AlertDialog(
-                                                          title: const Text(
-                                                            'Xóa bài viết',
-                                                          ),
-                                                          content: const Text(
-                                                            'Bạn có chắc muốn xóa bài viết này?',
-                                                          ),
-                                                          actions: [
-                                                            TextButton(
-                                                              onPressed: () =>
-                                                                  Navigator.pop(
-                                                                    context,
-                                                                    false,
-                                                                  ),
-                                                              child: const Text(
-                                                                'Hủy',
-                                                              ),
-                                                            ),
-                                                            TextButton(
-                                                              onPressed: () =>
-                                                                  Navigator.pop(
-                                                                    context,
-                                                                    true,
-                                                                  ),
-                                                              child: const Text(
-                                                                'Xóa',
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                  );
-                                                  if (confirm == true &&
-                                                      mounted) {
-                                                    await postDoc.reference
-                                                        .delete();
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                          'Đã xóa bài viết',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                } else if (value == 'edit') {
-                                                  final controller =
-                                                      TextEditingController(
-                                                        text: content,
-                                                      );
-                                                  final confirm = await showDialog<bool>(
-                                                    context: context,
-                                                    builder: (context) => AlertDialog(
-                                                      title: const Text(
-                                                        'Sửa bài viết',
-                                                      ),
-                                                      content: TextField(
-                                                        controller: controller,
-                                                        maxLines: 5,
-                                                        decoration: const InputDecoration(
-                                                          hintText:
-                                                              'Nhập nội dung mới...',
-                                                          border:
-                                                              OutlineInputBorder(),
-                                                        ),
-                                                      ),
-                                                      actions: [
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                context,
-                                                                false,
-                                                              ),
-                                                          child: const Text(
-                                                            'Hủy',
-                                                          ),
-                                                        ),
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                context,
-                                                                true,
-                                                              ),
-                                                          child: const Text(
-                                                            'Lưu',
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  );
-                                                  if (confirm == true &&
-                                                      mounted) {
-                                                    await postDoc.reference
-                                                        .update({
-                                                          'content':
-                                                              controller.text,
-                                                        });
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                          'Đã cập nhật bài viết',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                }
-                                              },
-                                              itemBuilder: (context) => [
-                                                const PopupMenuItem(
-                                                  value: 'edit',
-                                                  child: Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons.edit,
-                                                        size: 20,
-                                                      ),
-                                                      SizedBox(width: 8),
-                                                      Text('Sửa bài viết'),
-                                                    ],
+                                        icon: const Icon(Icons.more_vert),
+                                        onSelected: (value) async {
+                                          if (value == 'delete') {
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text('Xóa bài viết'),
+                                                content: const Text(
+                                                    'Bạn có chắc muốn xóa bài viết này?'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context, false),
+                                                    child: const Text('Hủy'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context, true),
+                                                    child: const Text('Xóa'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true && context.mounted) {
+                                              await postDoc.reference.delete();
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(const SnackBar(
+                                                content: Text('Đã xóa bài viết'),
+                                              ));
+                                            }
+                                          } else if (value == 'edit') {
+                                            final controller =
+                                            TextEditingController(text: content);
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text('Sửa bài viết'),
+                                                content: TextField(
+                                                  controller: controller,
+                                                  maxLines: 5,
+                                                  decoration: const InputDecoration(
+                                                    hintText: 'Nhập nội dung mới...',
+                                                    border: OutlineInputBorder(),
                                                   ),
                                                 ),
-                                                const PopupMenuItem(
-                                                  value: 'delete',
-                                                  child: Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons.delete,
-                                                        size: 20,
-                                                        color: Colors.red,
-                                                      ),
-                                                      SizedBox(width: 8),
-                                                      Text(
-                                                        'Xóa bài viết',
-                                                        style: TextStyle(
-                                                          color: Colors.red,
-                                                        ),
-                                                      ),
-                                                    ],
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context, false),
+                                                    child: const Text('Hủy'),
                                                   ),
-                                                ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context, true),
+                                                    child: const Text('Lưu'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true && context.mounted) {
+                                              await postDoc.reference.update({
+                                                'content': controller.text,
+                                              });
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(const SnackBar(
+                                                content: Text('Đã cập nhật bài viết'),
+                                              ));
+                                            }
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.edit, size: 20),
+                                                SizedBox(width: 8),
+                                                Text('Sửa bài viết'),
                                               ],
-                                            )
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete,
+                                                    size: 20, color: Colors.red),
+                                                SizedBox(width: 8),
+                                                Text('Xóa bài viết',
+                                                    style: TextStyle(color: Colors.red)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      )
                                           : null,
                                     ),
-                                    // Nội dung bài viết
                                     if (content.isNotEmpty)
                                       Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                        ),
-                                        child: Text(
-                                          content,
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        child: Text(content,
+                                            style: const TextStyle(fontSize: 14)),
                                       ),
-                                    // Hình ảnh
-                                    if (imageUrl != null && imageUrl != '')
+                                    if (imageUrl != null && imageUrl.isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.all(12),
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                           child: Image.network(
                                             imageUrl,
                                             fit: BoxFit.cover,
                                             width: double.infinity,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return Container(
-                                                    height: 200,
-                                                    color: Colors.grey.shade300,
-                                                    child: const Center(
-                                                      child: Icon(
-                                                        Icons.broken_image,
-                                                        color: Colors.grey,
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Container(
+                                                height: 200,
+                                                color: Colors.grey.shade300,
+                                                child: const Center(
+                                                  child: Icon(Icons.broken_image,
+                                                      color: Colors.grey),
+                                                ),
+                                              );
+                                            },
                                             loadingBuilder:
-                                                (
-                                                  context,
-                                                  child,
-                                                  loadingProgress,
-                                                ) {
-                                                  if (loadingProgress == null)
-                                                    return child;
-                                                  return Container(
-                                                    height: 200,
-                                                    color: Colors.grey.shade200,
-                                                    child: const Center(
-                                                      child:
-                                                          CircularProgressIndicator(),
-                                                    ),
-                                                  );
-                                                },
+                                                (context, child, loadingProgress) {
+                                              if (loadingProgress == null) return child;
+                                              return Container(
+                                                height: 200,
+                                                color: Colors.grey.shade200,
+                                                child: const Center(
+                                                  child: CircularProgressIndicator(),
+                                                ),
+                                              );
+                                            },
                                           ),
                                         ),
                                       ),
@@ -706,7 +620,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   },
                 ),
-              ),
+              )
             ],
           );
         },

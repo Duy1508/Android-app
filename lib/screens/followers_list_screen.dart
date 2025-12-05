@@ -16,8 +16,8 @@ class FollowersListScreen extends StatelessWidget {
   }
 
   Future<Map<String, Map<String, dynamic>>> _fetchUsersByIds(
-    List<String> ids,
-  ) async {
+      List<String> ids,
+      ) async {
     final result = <String, Map<String, dynamic>>{};
     for (final chunk in _chunkIds(ids)) {
       final snap = await FirebaseFirestore.instance

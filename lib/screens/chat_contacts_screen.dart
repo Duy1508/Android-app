@@ -45,8 +45,8 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
   }
 
   Future<Map<String, Map<String, dynamic>>> _fetchUsersByIds(
-    List<String> ids,
-  ) async {
+      List<String> ids,
+      ) async {
     final result = <String, Map<String, dynamic>>{};
     for (final chunk in _chunkIds(ids)) {
       final snap = await _firestore
@@ -61,9 +61,9 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
   }
 
   Future<List<_ChatContact>> _buildContacts(
-    List<String> contactIds,
-    Set<String> pinnedIds,
-  ) async {
+      List<String> contactIds,
+      Set<String> pinnedIds,
+      ) async {
     final users = await _fetchUsersByIds(contactIds);
     final chatDocs = await Future.wait(
       contactIds.map((id) async {
@@ -97,9 +97,9 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
       final updatedAt = chatData?['updatedAt'] as Timestamp?;
       final isUnread =
           lastMessage.isNotEmpty &&
-          lastMessageSenderId.isNotEmpty &&
-          lastMessageSenderId != _currentUser?.uid &&
-          !lastMessageReadBy.contains(_currentUser?.uid);
+              lastMessageSenderId.isNotEmpty &&
+              lastMessageSenderId != _currentUser?.uid &&
+              !lastMessageReadBy.contains(_currentUser?.uid);
 
       return _ChatContact(
         userId: entry.key,
@@ -191,8 +191,8 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
               final followingIds = snapshot.data!.docs
                   .map(
                     (doc) =>
-                        (doc.data() as Map<String, dynamic>)['followingId'],
-                  )
+                (doc.data() as Map<String, dynamic>)['followingId'],
+              )
                   .whereType<String>()
                   .toSet()
                   .toList();
@@ -215,13 +215,13 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
                   final filtered = _searchTerm.isEmpty
                       ? contacts
                       : contacts
-                            .where(
-                              (c) =>
-                                  c.name.toLowerCase().contains(_searchTerm) ||
-                                  c.email.toLowerCase().contains(_searchTerm) ||
-                                  c.bio.toLowerCase().contains(_searchTerm),
-                            )
-                            .toList();
+                      .where(
+                        (c) =>
+                    c.name.toLowerCase().contains(_searchTerm) ||
+                        c.email.toLowerCase().contains(_searchTerm) ||
+                        c.bio.toLowerCase().contains(_searchTerm),
+                  )
+                      .toList();
 
                   if (filtered.isEmpty) {
                     return const Center(
@@ -248,9 +248,9 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
                             _debounce?.cancel();
                             _debounce = Timer(
                               const Duration(milliseconds: 250),
-                              () {
+                                  () {
                                 setState(
-                                  () => _searchTerm = value.toLowerCase(),
+                                      () => _searchTerm = value.toLowerCase(),
                                 );
                               },
                             );
@@ -262,40 +262,40 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           itemCount: filtered.length,
                           separatorBuilder: (context, index) =>
-                              const Divider(height: 1),
+                          const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final contact = filtered[index];
                             final lastMsg = contact.lastMessage;
                             final subtitle = lastMsg.isNotEmpty
                                 ? '${contact.isUnread ? '[Chưa đọc] ' : ''}$lastMsg'
                                 : (contact.bio.isNotEmpty
-                                      ? contact.bio
-                                      : contact.email);
+                                ? contact.bio
+                                : contact.email);
                             return ListTile(
                               leading: CircleAvatar(
                                 backgroundImage:
-                                    contact.avatarUrl != null &&
-                                        contact.avatarUrl!.isNotEmpty
+                                contact.avatarUrl != null &&
+                                    contact.avatarUrl!.isNotEmpty
                                     ? NetworkImage(contact.avatarUrl!)
                                     : null,
                                 child:
-                                    contact.avatarUrl == null ||
-                                        contact.avatarUrl!.isEmpty
+                                contact.avatarUrl == null ||
+                                    contact.avatarUrl!.isEmpty
                                     ? const Icon(Icons.person)
                                     : null,
                               ),
                               title: Text(contact.name),
                               subtitle: subtitle.isNotEmpty
                                   ? Text(
-                                      subtitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: contact.isUnread
-                                          ? const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            )
-                                          : null,
-                                    )
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: contact.isUnread
+                                    ? const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                )
+                                    : null,
+                              )
                                   : null,
                               trailing: IconButton(
                                 icon: Icon(
