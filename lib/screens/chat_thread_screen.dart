@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import '../services/notification_service.dart';
 
 class ChatThreadScreen extends StatefulWidget {
   final String contactId;
@@ -43,12 +43,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   Future<void> _sendMessage() async {
     final user = _currentUser;
     if (user == null) return;
+
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
     setState(() => _isSending = true);
+
     try {
       final chatDoc = _firestore.collection('chats').doc(_chatId);
+
+      // 1) Lưu message vào sub-collection
       await chatDoc.collection('messages').add({
         'text': text,
         'senderId': user.uid,
@@ -56,6 +60,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         'readBy': [user.uid], // người gửi mặc định đã đọc
       });
 
+      // 2) Cập nhật thông tin chat
       await chatDoc.set({
         'participants': [user.uid, widget.contactId],
         'lastMessage': text,
@@ -64,12 +69,21 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      // 3) Tạo notification cho người nhận
+      final notificationService = NotificationService();
+      await notificationService.createNotification(
+        userId: widget.contactId,     // người nhận tin nhắn
+        type: 'message',
+        fromUserId: user.uid,
+      );
+
+      // 4) Xóa nội dung trong TextField
       _messageController.clear();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Không thể gửi tin nhắn: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể gửi tin nhắn: $e')),
+        );
       }
     } finally {
       if (mounted) {
@@ -77,6 +91,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       }
     }
   }
+
 
   Future<void> _markMessagesAsRead(
       List<QueryDocumentSnapshot> messages,

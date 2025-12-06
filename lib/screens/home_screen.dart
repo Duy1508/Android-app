@@ -18,15 +18,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
-  static const int _chatTabIndex = 3;
+  static const int _chatTabIndex = 1; // ChatContactsScreen ở index 1
 
   final List<Widget> pages = [
-    const FeedScreen(), // Trang chủ hiển thị bài viết
-    const ChatContactsScreen(), //const SearchScreen(),
-    const PostScreen(), // Trang đăng bài
-    //const ChatContactsScreen(), // Danh bạ chat
-    const NotificationsScreen(), // Màn hình thông báo
-    const ProfileScreen(),
+    const FeedScreen(),          // 0
+    const ChatContactsScreen(),  // 1
+    const PostScreen(),          // 2
+    const NotificationsScreen(), // 3
+    const ProfileScreen(),       // 4
   ];
 
   PreferredSizeWidget? _buildAppBar() {
@@ -55,10 +54,10 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case _chatTabIndex:
         return null; // ChatContactsScreen đã có AppBar riêng
-      case 4:
+      case 3:
         return null; // NotificationsScreen đã có AppBar riêng
-      case 5:
-        return null; // ❌ Không cần AppBar vì ProfileScreen đã có riêng
+      case 4:
+        return null; // ProfileScreen đã có AppBar riêng
       default:
         return AppBar(
           title: const Text(''),
@@ -106,3 +105,5 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
+

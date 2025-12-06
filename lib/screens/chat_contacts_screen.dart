@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'groups_list_screen.dart';
 import '../services/follow_service.dart';
 import 'chat_thread_screen.dart';
+import 'create_group_screen.dart'; // thêm import màn hình tạo nhóm
 
 class ChatContactsScreen extends StatefulWidget {
   const ChatContactsScreen({super.key});
@@ -65,6 +66,7 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
       Set<String> pinnedIds,
       ) async {
     final users = await _fetchUsersByIds(contactIds);
+
     final chatDocs = await Future.wait(
       contactIds.map((id) async {
         final chatId = _chatIdFor(id);
@@ -89,17 +91,17 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
       final chatData = chatDoc != null
           ? chatDoc.data() as Map<String, dynamic>?
           : null;
+
       final lastMessage = chatData?['lastMessage'] as String? ?? '';
       final lastMessageSenderId =
           chatData?['lastMessageSenderId'] as String? ?? '';
       final lastMessageReadBy =
           (chatData?['lastMessageReadBy'] as List?)?.cast<String>() ?? const [];
       final updatedAt = chatData?['updatedAt'] as Timestamp?;
-      final isUnread =
-          lastMessage.isNotEmpty &&
-              lastMessageSenderId.isNotEmpty &&
-              lastMessageSenderId != _currentUser?.uid &&
-              !lastMessageReadBy.contains(_currentUser?.uid);
+      final isUnread = lastMessage.isNotEmpty &&
+          lastMessageSenderId.isNotEmpty &&
+          lastMessageSenderId != _currentUser?.uid &&
+          !lastMessageReadBy.contains(_currentUser?.uid);
 
       return _ChatContact(
         userId: entry.key,
@@ -154,7 +156,37 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
     final userId = user.uid;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trò chuyện')),
+      appBar: AppBar(
+        title: const Text('Trò chuyện'),
+        actions: [
+          // Icon tạo nhóm
+          IconButton(
+            icon: const Icon(Icons.group_add),
+            tooltip: 'Tạo nhóm mới',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CreateGroupScreen(currentUserId: userId),
+                ),
+              );
+            },
+          ),
+          // Icon danh sách nhóm
+          IconButton(
+            icon: const Icon(Icons.groups),
+            tooltip: 'Danh sách nhóm',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GroupListScreen(currentUserId: userId),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: _firestore.collection('users').doc(userId).snapshots(),
         builder: (context, userSnapshot) {
@@ -170,9 +202,8 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
 
           final userData =
               userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
-          final pinnedList = List<String>.from(
-            userData['pinnedChatContacts'] ?? const [],
-          );
+          final pinnedList =
+          List<String>.from(userData['pinnedChatContacts'] ?? const []);
           final pinnedSet = pinnedList.toSet();
 
           return StreamBuilder<QuerySnapshot>(
@@ -189,10 +220,8 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
               }
 
               final followingIds = snapshot.data!.docs
-                  .map(
-                    (doc) =>
-                (doc.data() as Map<String, dynamic>)['followingId'],
-              )
+                  .map((doc) =>
+              (doc.data() as Map<String, dynamic>)['followingId'])
                   .whereType<String>()
                   .toSet()
                   .toList();
@@ -223,12 +252,6 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
                   )
                       .toList();
 
-                  if (filtered.isEmpty) {
-                    return const Center(
-                      child: Text('Không tìm thấy danh bạ hợp lệ.'),
-                    );
-                  }
-
                   return Column(
                     children: [
                       Padding(
@@ -258,8 +281,13 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
                         ),
                       ),
                       Expanded(
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: filtered.isEmpty
+                            ? const Center(
+                          child: Text('Không tìm thấy danh bạ hợp lệ.'),
+                        )
+                            : ListView.separated(
+                          padding:
+                          const EdgeInsets.symmetric(vertical: 8),
                           itemCount: filtered.length,
                           separatorBuilder: (context, index) =>
                           const Divider(height: 1),
@@ -271,15 +299,15 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
                                 : (contact.bio.isNotEmpty
                                 ? contact.bio
                                 : contact.email);
+
                             return ListTile(
                               leading: CircleAvatar(
-                                backgroundImage:
-                                contact.avatarUrl != null &&
+                                backgroundImage: contact.avatarUrl !=
+                                    null &&
                                     contact.avatarUrl!.isNotEmpty
                                     ? NetworkImage(contact.avatarUrl!)
                                     : null,
-                                child:
-                                contact.avatarUrl == null ||
+                                child: contact.avatarUrl == null ||
                                     contact.avatarUrl!.isEmpty
                                     ? const Icon(Icons.person)
                                     : null,
@@ -318,7 +346,8 @@ class _ChatContactsScreenState extends State<ChatContactsScreen> {
                                     builder: (_) => ChatThreadScreen(
                                       contactId: contact.userId,
                                       contactName: contact.name,
-                                      contactAvatarUrl: contact.avatarUrl,
+                                      contactAvatarUrl:
+                                      contact.avatarUrl,
                                     ),
                                   ),
                                 );

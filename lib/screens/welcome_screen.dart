@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'home_screen.dart';
 import 'register_screen.dart';
+import '../services/notification_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -19,10 +21,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Future<void> _login() async {
     try {
-      await _auth.signInWithEmailAndPassword(
+      final userCredential = await _auth.signInWithEmailAndPassword(
         email: _usernameController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      final user = userCredential.user;
+      if (user != null) {
+        final userId = user.uid;
+
+        // Khởi tạo NotificationService và gọi initFCM
+        final notificationService = NotificationService();
+        await notificationService.initFCM(context, userId);
+      }
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
