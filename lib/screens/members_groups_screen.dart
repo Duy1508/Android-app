@@ -21,6 +21,7 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
   Map<String, dynamic>? _groupData;
   Map<String, Map<String, dynamic>> _usersMap = {};
   bool _loading = true;
+  List<Map<String, dynamic>> _searchResults = [];
 
   @override
   void initState() {
@@ -58,15 +59,36 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
     return _groupData?['leaderId'] == widget.currentUserId;
   }
 
-  Future<void> _addMember() async {
-    final newId = _addMemberController.text.trim();
-    if (newId.isEmpty) return;
+  Future<void> _searchUsersByName(String query) async {
+    if (query.isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    final snap = await _firestore
+        .collection('users')
+        .where('name', isGreaterThanOrEqualTo: query)
+        .where('name', isLessThanOrEqualTo: query + '\uf8ff')
+        .get();
+
+    setState(() {
+      _searchResults = snap.docs.map((d) {
+        final data = d.data();
+        return {
+          'id': d.id,
+          'name': data['name'] ?? d.id,
+          'avatarUrl': data['avatarUrl'] ?? '',
+        };
+      }).toList();
+    });
+  }
+
+  Future<void> _addMember(String userId) async {
     await _firestore.collection('groups').doc(widget.groupId).update({
-      'members': FieldValue.arrayUnion([newId]),
+      'members': FieldValue.arrayUnion([userId]),
     });
     _addMemberController.clear();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Đã thêm $newId vào nhóm')),
+      SnackBar(content: Text('Đã thêm $userId vào nhóm')),
     );
     _loadGroupInfo();
   }
@@ -153,20 +175,38 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
           if (_isLeader())
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _addMemberController,
-                      decoration: const InputDecoration(
-                        labelText: 'Thêm thành viên (userId)',
+                  TextField(
+                    controller: _addMemberController,
+                    decoration: const InputDecoration(
+                      labelText: 'Tìm thành viên theo tên',
+                    ),
+                    onChanged: _searchUsersByName,
+                  ),
+                  if (_searchResults.isNotEmpty)
+                    SizedBox(
+                      height: 150,
+                      child: ListView.builder(
+                        itemCount: _searchResults.length,
+                        itemBuilder: (context, i) {
+                          final s = _searchResults[i];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: s['avatarUrl'] != ''
+                                  ? NetworkImage(s['avatarUrl'])
+                                  : null,
+                              child: s['avatarUrl'] == ''
+                                  ? const Icon(Icons.person)
+                                  : null,
+                            ),
+                            title: Text(s['name']),
+                            subtitle: Text(s['id']),
+                            onTap: () => _addMember(s['id']),
+                          );
+                        },
                       ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.person_add, color: Colors.blue),
-                    onPressed: _addMember,
-                  ),
                 ],
               ),
             ),
