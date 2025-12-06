@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'create_group_screen.dart'; // màn hình chat nhóm
+import 'groups_chat_screen.dart'; // màn hình chat nhóm
 
 class GroupListScreen extends StatelessWidget {
   final String currentUserId;
@@ -60,7 +60,7 @@ class GroupListScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => CreateGroupScreen(
+                      builder: (_) => GroupChatScreen(
                         groupId: groupId,
                         currentUserId: currentUserId,
                       ),

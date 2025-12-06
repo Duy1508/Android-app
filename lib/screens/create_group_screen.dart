@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   final String currentUserId;
-  final String? groupId; // thêm để hỗ trợ chỉnh sửa
+  final String? groupId; // nếu null: tạo mới, nếu có: chỉnh sửa
 
   const CreateGroupScreen({
     super.key,
@@ -19,6 +19,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _groupNameController = TextEditingController();
   final _memberController = TextEditingController();
   final List<String> _members = [];
+  List<Map<String, dynamic>> _suggestions = []; // gợi ý từ following
   bool _isLoading = false;
 
   @override
@@ -27,6 +28,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     if (widget.groupId != null) {
       _loadGroupData();
     }
+    _loadFollowings();
   }
 
   Future<void> _loadGroupData() async {
@@ -38,7 +40,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           .get();
       if (doc.exists) {
         final data = doc.data()!;
-        _groupNameController.text = data['name'] ?? '';
+        _groupNameController.text = (data['name'] as String?) ?? '';
         final loadedMembers = (data['members'] as List?)?.cast<String>() ?? [];
         setState(() => _members.addAll(loadedMembers));
       }
@@ -51,8 +53,39 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     }
   }
 
-  void _addMember() {
-    final id = _memberController.text.trim();
+  Future<void> _loadFollowings() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentUserId)
+          .collection('following')
+          .get();
+
+      final ids = snap.docs.map((d) => d.id).toList();
+
+      if (ids.isNotEmpty) {
+        final usersSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: ids)
+            .get();
+
+        setState(() {
+          _suggestions = usersSnap.docs.map((d) {
+            final data = d.data();
+            return {
+              'id': d.id,
+              'name': data['name'] ?? d.id,
+              'avatarUrl': data['avatarUrl'] ?? '',
+            };
+          }).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Lỗi load followings: $e');
+    }
+  }
+
+  void _addMember(String id) {
     if (id.isNotEmpty && !_members.contains(id)) {
       setState(() {
         _members.add(id);
@@ -83,19 +116,36 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final ref = widget.groupId != null
-          ? FirebaseFirestore.instance.collection('groups').doc(widget.groupId)
-          : FirebaseFirestore.instance.collection('groups').doc();
+      final groups = FirebaseFirestore.instance.collection('groups');
+      final docRef = widget.groupId != null
+          ? groups.doc(widget.groupId)
+          : groups.doc();
 
-      await ref.set({
+      String leaderId = widget.currentUserId;
+      if (widget.groupId != null) {
+        final existing = await docRef.get();
+        leaderId =
+            (existing.data()?['leaderId'] as String?) ?? widget.currentUserId;
+      }
+
+      final baseData = <String, dynamic>{
         'name': name,
         'members': _members,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastMessage': '',
-        'lastMessageAt': FieldValue.serverTimestamp(),
-        'lastSenderId': '',
-        'lastMessageReadBy': [],
-      }, SetOptions(merge: true));
+        'leaderId': leaderId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (widget.groupId == null) {
+        baseData.addAll({
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastMessage': '',
+          'lastMessageAt': FieldValue.serverTimestamp(),
+          'lastSenderId': '',
+          'lastMessageReadBy': <String>[],
+        });
+      }
+
+      await docRef.set(baseData, SetOptions(merge: true));
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -118,6 +168,13 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget build(BuildContext context) {
     final isEditing = widget.groupId != null;
 
+    final query = _memberController.text.trim().toLowerCase();
+    final filteredSuggestions = query.isEmpty
+        ? _suggestions
+        : _suggestions
+        .where((s) => (s['name'] as String).toLowerCase().contains(query))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Chỉnh sửa nhóm' : 'Tạo nhóm mới'),
@@ -133,21 +190,36 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               decoration: const InputDecoration(labelText: 'Tên nhóm'),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _memberController,
-                    decoration: const InputDecoration(
-                        labelText: 'Thêm thành viên (userId)'),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _addMember,
-                ),
-              ],
+            TextField(
+              controller: _memberController,
+              decoration: const InputDecoration(
+                labelText: 'Thêm thành viên (userId hoặc tên)',
+              ),
+              onChanged: (_) => setState(() {}),
             ),
+            if (filteredSuggestions.isNotEmpty)
+              SizedBox(
+                height: 150,
+                child: ListView.builder(
+                  itemCount: filteredSuggestions.length,
+                  itemBuilder: (context, i) {
+                    final s = filteredSuggestions[i];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: s['avatarUrl'] != ''
+                            ? NetworkImage(s['avatarUrl'])
+                            : null,
+                        child: s['avatarUrl'] == ''
+                            ? const Icon(Icons.person)
+                            : null,
+                      ),
+                      title: Text(s['name']),
+                      subtitle: Text(s['id']),
+                      onTap: () => _addMember(s['id']),
+                    );
+                  },
+                ),
+              ),
             const SizedBox(height: 16),
             Expanded(
               child: _members.isEmpty
