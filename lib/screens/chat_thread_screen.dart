@@ -72,7 +72,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       // 3) Tạo notification cho người nhận
       final notificationService = NotificationService();
       await notificationService.createNotification(
-        userId: widget.contactId,     // người nhận tin nhắn
+        userId: widget.contactId, // người nhận tin nhắn
         type: 'message',
         fromUserId: user.uid,
       );
@@ -81,9 +81,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       _messageController.clear();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể gửi tin nhắn: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Không thể gửi tin nhắn: $e')));
       }
     } finally {
       if (mounted) {
@@ -92,11 +92,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     }
   }
 
-
   Future<void> _markMessagesAsRead(
-      List<QueryDocumentSnapshot> messages,
-      String userId,
-      ) async {
+    List<QueryDocumentSnapshot> messages,
+    String userId,
+  ) async {
     int count = 0;
     final batch = _firestore.batch();
     for (final doc in messages) {
@@ -147,13 +146,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           children: [
             CircleAvatar(
               backgroundImage:
-              widget.contactAvatarUrl != null &&
-                  widget.contactAvatarUrl!.isNotEmpty
+                  widget.contactAvatarUrl != null &&
+                      widget.contactAvatarUrl!.isNotEmpty
                   ? NetworkImage(widget.contactAvatarUrl!)
                   : null,
               child:
-              widget.contactAvatarUrl == null ||
-                  widget.contactAvatarUrl!.isEmpty
+                  widget.contactAvatarUrl == null ||
+                      widget.contactAvatarUrl!.isEmpty
                   ? const Icon(Icons.person)
                   : null,
             ),
@@ -194,13 +193,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final messageData = messages[index].data() as Map<String, dynamic>;
+                    final messageData =
+                        messages[index].data() as Map<String, dynamic>;
                     final text = messageData['text'] as String? ?? '';
                     final senderId = messageData['senderId'] as String? ?? '';
                     final isMe = senderId == userId;
                     final createdAt = messageData['createdAt'] as Timestamp?;
-                    final readBy = (messageData['readBy'] as List?)?.cast<String>() ?? [];
-                    final isReadByOther = isMe && readBy.contains(widget.contactId);
+                    final readBy =
+                        (messageData['readBy'] as List?)?.cast<String>() ?? [];
+                    final isReadByOther =
+                        isMe && readBy.contains(widget.contactId);
 
                     final messageDate = createdAt?.toDate();
 
@@ -212,8 +214,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       if (index == messages.length - 1) {
                         showSeparator = true;
                       } else {
-                        final prevData = messages[index + 1].data() as Map<String, dynamic>;
-                        final prevCreatedAt = prevData['createdAt'] as Timestamp?;
+                        final prevData =
+                            messages[index + 1].data() as Map<String, dynamic>;
+                        final prevCreatedAt =
+                            prevData['createdAt'] as Timestamp?;
                         if (prevCreatedAt != null) {
                           final prevDate = prevCreatedAt.toDate();
                           if (prevDate.day != messageDate.day ||
@@ -230,11 +234,15 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     if (index == messages.length - 1) {
                       showTime = true; // tin đầu tiên luôn hiển thị giờ
                     } else {
-                      final prevData = messages[index + 1].data() as Map<String, dynamic>;
+                      final prevData =
+                          messages[index + 1].data() as Map<String, dynamic>;
                       final prevCreatedAt = prevData['createdAt'] as Timestamp?;
                       if (prevCreatedAt != null && createdAt != null) {
                         final prevDate = prevCreatedAt.toDate();
-                        final diff = prevDate.difference(messageDate!).inMinutes.abs();
+                        final diff = prevDate
+                            .difference(messageDate!)
+                            .inMinutes
+                            .abs();
                         if (diff >= 5) {
                           showTime = true;
                         }
@@ -269,23 +277,30 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                         GestureDetector(
                           onTap: () {
                             setState(() {
-                              _selectedMessageId = _selectedMessageId == messages[index].id
+                              _selectedMessageId =
+                                  _selectedMessageId == messages[index].id
                                   ? null
                                   : messages[index].id;
                             });
                           },
                           child: Align(
-                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            alignment: isMe
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
                             child: Column(
-                              crossAxisAlignment:
-                              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                              crossAxisAlignment: isMe
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
                               children: [
                                 // Hiển thị giờ:phút chính xác khi tin nhắn được chọn
-                                if (_selectedMessageId == messages[index].id && createdAt != null)
+                                if (_selectedMessageId == messages[index].id &&
+                                    createdAt != null)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 2),
                                     child: Text(
-                                      DateFormat('dd/MM/yyyy HH:mm').format(createdAt.toDate()),
+                                      DateFormat(
+                                        'dd/MM/yyyy HH:mm',
+                                      ).format(createdAt.toDate()),
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.grey.shade600,
@@ -294,28 +309,43 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                   ),
                                 ConstrainedBox(
                                   constraints: BoxConstraints(
-                                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width * 0.7,
                                   ),
                                   child: Container(
-                                    margin: const EdgeInsets.symmetric(vertical: 4),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    margin: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: isMe ? Colors.blueAccent : Colors.grey.shade200,
+                                      color: isMe
+                                          ? Colors.blueAccent
+                                          : Colors.grey.shade200,
                                       borderRadius: BorderRadius.only(
                                         topLeft: const Radius.circular(12),
                                         topRight: const Radius.circular(12),
-                                        bottomLeft: Radius.circular(isMe ? 12 : 0),
-                                        bottomRight: Radius.circular(isMe ? 0 : 12),
+                                        bottomLeft: Radius.circular(
+                                          isMe ? 12 : 0,
+                                        ),
+                                        bottomRight: Radius.circular(
+                                          isMe ? 0 : 12,
+                                        ),
                                       ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment:
-                                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                      crossAxisAlignment: isMe
+                                          ? CrossAxisAlignment.end
+                                          : CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           text,
                                           style: TextStyle(
-                                            color: isMe ? Colors.white : Colors.black,
+                                            color: isMe
+                                                ? Colors.white
+                                                : Colors.black,
                                             fontSize: 15,
                                           ),
                                         ),
@@ -325,7 +355,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                             isReadByOther ? 'Đã đọc' : 'Đã gửi',
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                              color: isMe
+                                                  ? Colors.white70
+                                                  : Colors.grey.shade600,
                                             ),
                                           ),
                                         ],
@@ -346,7 +378,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).scaffoldBackgroundColor,
               border: Border(top: BorderSide(color: Colors.grey.shade300)),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -359,25 +391,51 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       controller: _messageController,
                       minLines: 1,
                       maxLines: 5,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Nhập tin nhắn...',
-                        border: InputBorder.none,
+                        hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF81C784)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF262626)
+                            : Colors.white,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   _isSending
                       ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                      : IconButton(
-                    icon: const Icon(
-                      Icons.send,
-                      color: Colors.blueAccent,
-                    ),
-                    onPressed: _sendMessage,
-                  ),
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Container(
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.all(Radius.circular(12)),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.send, color: Colors.white),
+                            onPressed: _sendMessage,
+                          ),
+                        ),
                 ],
               ),
             ),

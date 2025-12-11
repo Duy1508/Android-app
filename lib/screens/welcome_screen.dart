@@ -36,107 +36,124 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Chào mừng đến Mạng Xã Hội',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-
-            // Ô nhập tài khoản
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: 'Email hoặc tên đăng nhập',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Ô nhập mật khẩu
-            TextField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                labelText: 'Mật khẩu',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  ),
-                  onPressed: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Chào mừng đến Mạng Xã Hội',
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    TextField(
+                      controller: _usernameController,
+                      decoration: InputDecoration(
+                        labelText: 'Email hoặc tên đăng nhập',
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
+                        filled: true,
+                        fillColor: Theme.of(context).brightness == Brightness.dark ? Color(0xFF262626) : Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Mật khẩu',
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
+                        filled: true,
+                        fillColor: Theme.of(context).brightness == Brightness.dark ? Color(0xFF262626) : Colors.white,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() => _obscurePassword = !_obscurePassword);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      width: double.infinity,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          splashFactory: NoSplash.splashFactory,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: _login,
+                        child: const Text('Đăng nhập'),
+                      ),
+                    ),
+                    if (error.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(error, style: const TextStyle(color: Colors.red)),
+                      ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () {},
+                      child: const Text(
+                        'Quên mật khẩu?',
+                        style: TextStyle(color: Color(0xFFBDBDBD), fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Nút đăng nhập
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                backgroundColor: Colors.blue,
-              ),
-              onPressed: _login,
-              child: const Text('Đăng nhập', style: TextStyle(fontSize: 16)),
-            ),
-
-            if (error.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(error, style: const TextStyle(color: Colors.red)),
-              ),
-
-            const SizedBox(height: 12),
-
-            // Quên mật khẩu
-            TextButton(
-              onPressed: () {
-                // TODO: Chuyển sang màn hình quên mật khẩu
-              },
-              child: const Text(
-                'Quên mật khẩu?',
-                style: TextStyle(color: Colors.black87),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Divider
-            Row(
-              children: const [
-                Expanded(child: Divider()),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('HOẶC'),
-                ),
-                Expanded(child: Divider()),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Đăng ký
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Bạn chưa có tài khoản?'),
-                TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                padding: const EdgeInsets.only(bottom: 32),
+                child: Container(
+                  width: double.infinity,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text('Đăng ký'),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      splashFactory: NoSplash.splashFactory,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    ),
+                    child: const Text('Đăng ký'),
+                  ),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

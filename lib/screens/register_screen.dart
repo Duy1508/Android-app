@@ -83,19 +83,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Đăng ký')),
+      appBar: AppBar(title: const Text('Đăng ký', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black))),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
-            TextField(controller: passController, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu')),
-            TextField(controller: confirmController, obscureText: true, decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu')),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'Nhập email',
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+                hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Mật khẩu',
+                hintText: 'Nhập mật khẩu',
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+                hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: confirmController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Xác nhận mật khẩu',
+                hintText: 'Nhập lại mật khẩu',
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+                hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
+              ),
+            ),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: register, child: const Text('Đăng ký')),
+            Container(
+              width: double.infinity,
+              height: 48,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                ),
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: register,
+                child: const Text('Đăng ký', style: TextStyle(color: Colors.white)),
+              ),
+            ),
             const SizedBox(height: 10),
-            if (error.isNotEmpty) Text(error, style: const TextStyle(color: Colors.red)),
-            if (success.isNotEmpty) Text(success, style: const TextStyle(color: Colors.green)),
+            if (error.isNotEmpty) Text(error, style: const TextStyle(color: Color(0xFFBDBDBD))),
+            if (success.isNotEmpty) Text(success, style: const TextStyle(color: Color(0xFF4DD0E1))),
           ],
         ),
       ),

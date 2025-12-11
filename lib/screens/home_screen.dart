@@ -46,11 +46,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-            IconButton(
-              icon: const Icon(Icons.settings),
-              tooltip: 'Cài đặt',
-              onPressed: _openLogoutMenu,
-            ),
           ],
         );
       case _chatTabIndex:
@@ -96,13 +91,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: pages[selectedIndex],
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: selectedIndex,
-        onTap: (index) => setState(() => selectedIndex = index),
-      ),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: _buildAppBar(),
+          body: pages[selectedIndex],
+          bottomNavigationBar: BottomNavBar(
+            currentIndex: selectedIndex,
+            onTap: (index) => setState(() => selectedIndex = index),
+          ),
+        ),
+        Positioned(
+          bottom: 24,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: GestureDetector(
+              onTap: () => setState(() => selectedIndex = 2),
+              child: Container(
+                height: 64,
+                width: 64,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 12,
+                      offset: Offset(0, 6),
+                    )
+                  ],
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 36),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

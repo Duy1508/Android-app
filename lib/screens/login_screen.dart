@@ -54,16 +54,62 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Đăng nhập')),
+      appBar: AppBar(title: const Text('Đăng nhập', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black))),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email')),
-            TextField(controller: passController, obscureText: true, decoration: InputDecoration(labelText: 'Mật khẩu')),
-            SizedBox(height: 20),
-            ElevatedButton(onPressed: login, child: Text('Đăng nhập')),
-            if (error.isNotEmpty) Text(error, style: TextStyle(color: Colors.red)),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'Nhập email',
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+                hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Mật khẩu',
+                hintText: 'Nhập mật khẩu',
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+                hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              height: 48,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                ),
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: login,
+                child: const Text('Đăng nhập', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+            if (error.isNotEmpty) Text(error, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {},
+              child: const Text('Quên mật khẩu?', style: TextStyle(color: Color(0xFFBDBDBD))),
+            ),
           ],
         ),
       ),

@@ -5,6 +5,8 @@ import 'editprofile_screen.dart';
 import '../services/follow_service.dart';
 import 'followers_list_screen.dart';
 import  'following_list-screen.dart';
+import 'package:flutter/services.dart';
+import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
@@ -71,6 +73,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return doc.exists;
   }
 
+  void _openLogoutMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Đăng xuất'),
+              onTap: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +113,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(color: Colors.black),
         ),
         centerTitle: true,
+        actions: widget.userId == null
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  tooltip: 'Cài đặt',
+                  onPressed: _openLogoutMenu,
+                ),
+              ]
+            : null,
       ),
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
@@ -241,14 +278,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () {
-                                // TODO: Chuyển sang trang lưu trữ
+                              onPressed: () async {
+                                final profileUrl =
+                                    'https://myapp.com/profile/$uid';
+                                await Clipboard.setData(
+                                    ClipboardData(text: profileUrl));
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Đã sao chép link hồ sơ!')),
+                                  );
+                                }
                               },
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Colors.black),
                               ),
                               child: const Text(
-                                'View Archive',
+                                'Chia sẻ trang cá nhân',
                                 style: TextStyle(color: Colors.black),
                               ),
                             ),
