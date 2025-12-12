@@ -34,8 +34,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.background, // ✅ dùng màu nền theo theme
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -45,9 +48,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Chào mừng đến Mạng Xã Hội',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onBackground,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
@@ -55,13 +62,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       controller: _usernameController,
                       decoration: InputDecoration(
                         labelText: 'Email hoặc tên đăng nhập',
+                        filled: true,
+                        fillColor: Theme.of(context).inputDecorationTheme.fillColor ??
+                            (isDark ? const Color(0xFF262626) : Colors.white),
                         border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFFE0E0E0)),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
-                        filled: true,
-                        fillColor: Theme.of(context).brightness == Brightness.dark ? Color(0xFF262626) : Colors.white,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -70,13 +76,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: 'Mật khẩu',
+                        filled: true,
+                        fillColor: Theme.of(context).inputDecorationTheme.fillColor ??
+                            (isDark ? const Color(0xFF262626) : Colors.white),
                         border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFFE0E0E0)),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
-                        filled: true,
-                        fillColor: Theme.of(context).brightness == Brightness.dark ? Color(0xFF262626) : Colors.white,
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -117,9 +122,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     const SizedBox(height: 10),
                     TextButton(
                       onPressed: () {},
-                      child: const Text(
+                      child: Text(
                         'Quên mật khẩu?',
-                        style: TextStyle(color: Color(0xFFBDBDBD), fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          color: isDark ? Colors.grey[400] : const Color(0xFFBDBDBD),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
