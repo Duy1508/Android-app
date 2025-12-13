@@ -8,15 +8,17 @@ class FollowingListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(title: const Text('Đang theo dõi')),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
             .collection('following')
+            .where('followerId', isEqualTo: userId)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final following = snapshot.data!.docs;
 
           if (following.isEmpty) {
@@ -27,23 +29,28 @@ class FollowingListScreen extends StatelessWidget {
             itemCount: following.length,
             itemBuilder: (context, index) {
               final followingDoc = following[index];
-              final followingId = followingDoc['userId'] ?? followingDoc.id;
+              final followingId = followingDoc['followingId'];
 
               return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(followingId).get(),
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(followingId)
+                    .get(),
                 builder: (context, userSnapshot) {
                   if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
                     return const ListTile(title: Text('Người dùng'));
                   }
-                  final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-                  final name = userData['name'] ?? 'Ẩn danh';
+                  final userData =
+                  userSnapshot.data!.data() as Map<String, dynamic>;
+                  final username = userData['username'] ?? 'Ẩn danh';
                   final avatarUrl = userData['avatarUrl'] ?? '';
 
                   return ListTile(
                     leading: avatarUrl.isNotEmpty
                         ? CircleAvatar(backgroundImage: NetworkImage(avatarUrl))
                         : const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(name),
+                    title: Text(username),
+                    // không có onTap → nhấn vào không làm gì
                   );
                 },
               );

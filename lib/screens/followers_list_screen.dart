@@ -34,6 +34,7 @@ class FollowersListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(title: const Text('Người theo dõi')),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance

@@ -110,9 +110,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_groupData?['name'] ?? 'Chat nhóm'),
+        backgroundColor: Colors.white,
         actions: [
           PopupMenuButton<String>(
             tooltip: 'Menu',
+            color: Colors.white, // ✅ nền trắng cho toàn bộ menu
             onSelected: (value) {
               if (value == 'members') {
                 Navigator.push(
@@ -126,15 +128,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 ).then((_) => _loadGroupInfo()); // refresh tên nhóm nếu đổi
               }
             },
-            itemBuilder: (context) => const [
+            itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'members',
-                child: Text('Thành viên nhóm'),
+                child: const Text(
+                  'Thành viên nhóm',
+                  style: TextStyle(color: Colors.black), // ✅ chữ đen
+                ),
               ),
             ],
-          ),
+          )
+
         ],
       ),
+      backgroundColor: Colors.white,
       body: Column(
         children: [
           Expanded(

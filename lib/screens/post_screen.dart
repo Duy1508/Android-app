@@ -18,8 +18,6 @@ class _PostScreenState extends State<PostScreen> {
   File? _selectedImage;
   bool _isUploading = false;
 
-
-
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     try {
@@ -35,17 +33,13 @@ class _PostScreenState extends State<PostScreen> {
   }
 
   Future<String> _uploadImage(File imageFile) async {
-    try {
-      final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      final ref = FirebaseStorage.instance.ref().child('post_images/$fileName.jpg');
-      final uploadTask = await ref.putFile(imageFile);
-      if (uploadTask.state == TaskState.success) {
-        return await ref.getDownloadURL();
-      } else {
-        throw Exception('Upload ảnh thất bại');
-      }
-    } catch (e) {
-      throw Exception('Lỗi upload ảnh: $e');
+    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    final ref = FirebaseStorage.instance.ref().child('post_images/$fileName.jpg');
+    final uploadTask = await ref.putFile(imageFile);
+    if (uploadTask.state == TaskState.success) {
+      return await ref.getDownloadURL();
+    } else {
+      throw Exception('Upload ảnh thất bại');
     }
   }
 
@@ -70,11 +64,9 @@ class _PostScreenState extends State<PostScreen> {
         _contentController.clear();
         _selectedImage = null;
       });
-      // ✅ Thông báo thành công
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đăng bài thành công!')),
       );
-      // ✅ Quay về HomeScreen và mở tab Feed
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -91,7 +83,27 @@ class _PostScreenState extends State<PostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Đăng bài viết')),
+      backgroundColor: Colors.white,
+      // ✅ AppBar trắng, giống FeedScreen
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.black),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+            );
+          },
+        ),
+        title: const Text(
+          'Bài viết mới',
+          style: TextStyle(color: Colors.black),
+        ),
+        centerTitle: true,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -106,18 +118,45 @@ class _PostScreenState extends State<PostScreen> {
             ),
             const SizedBox(height: 12),
             if (_selectedImage != null)
-              Image.file(_selectedImage!, height: 150, fit: BoxFit.cover),
-            TextButton.icon(
-              onPressed: _pickImage,
-              icon: const Icon(Icons.image),
-              label: const Text('Chọn ảnh từ thư viện'),
-            ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(_selectedImage!, height: 180, fit: BoxFit.cover),
+              ),
             const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _isUploading ? null : _submitPost,
-              child: _isUploading
-                  ? const CircularProgressIndicator()
-                  : const Text('Đăng bài'),
+            TextButton.icon(
+              icon: const Icon(Icons.photo, color: Colors.black),
+              label: const Text('Chọn ảnh'),
+              style: TextButton.styleFrom(foregroundColor: Colors.black),
+              onPressed: _pickImage,
+            ),
+            const Spacer(),
+            Container(
+              width: double.infinity,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ElevatedButton(
+                onPressed: _isUploading ? null : _submitPost,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  foregroundColor: Colors.white,
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                child: _isUploading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Đăng bài'),
+              ),
             ),
           ],
         ),

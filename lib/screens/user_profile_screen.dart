@@ -22,6 +22,7 @@ class UserProfileScreen extends StatelessWidget {
         final avatarUrl = data['avatarUrl'];
 
         return Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
             title: Text(name),
             backgroundColor: Colors.white,

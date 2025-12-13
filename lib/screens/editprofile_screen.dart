@@ -106,9 +106,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: const Text('Chỉnh sửa hồ sơ'),
         centerTitle: true,
       ),
+      backgroundColor: Colors.white,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -126,17 +128,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton.icon(
-                  icon: const Icon(Icons.photo),
+                  icon: const Icon(Icons.photo, color: Colors.black), // ✅ icon màu đen
                   label: const Text('Thư viện'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black, // ✅ chữ màu đen
+                  ),
                   onPressed: () => _pickImage(ImageSource.gallery),
                 ),
                 TextButton.icon(
-                  icon: const Icon(Icons.camera_alt),
+                  icon: const Icon(Icons.camera_alt, color: Colors.black), // ✅ icon màu đen
                   label: const Text('Máy ảnh'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black, // ✅ chữ màu đen
+                  ),
                   onPressed: () => _pickImage(ImageSource.camera),
                 ),
               ],
             ),
+
             const SizedBox(height: 16),
             TextField(
               controller: _nameController,
@@ -158,20 +167,58 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: _saveChanges,
-                    child: const Text('Lưu thay đổi'),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: _saveChanges,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent, // nền trong suốt để lộ gradient
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        foregroundColor: Colors.white, // ✅ chữ trắng
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      child: const Text('Lưu thay đổi'),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Hủy'),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12), // ✅ bo góc giống nút lưu
+                      color: Colors.white, // nền trắng
+                    ),
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        foregroundColor: Colors.black, // chữ đen
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      child: const Text('Hủy'),
+                    ),
                   ),
                 ),
               ],
-            ),
+            )
           ],
         ),
       ),

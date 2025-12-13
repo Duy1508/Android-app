@@ -22,6 +22,7 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
   Map<String, Map<String, dynamic>> _usersMap = {};
   bool _loading = true;
   List<Map<String, dynamic>> _searchResults = [];
+  String? _currentUsername;
 
   @override
   void initState() {
@@ -31,6 +32,12 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
 
   Future<void> _loadGroupInfo() async {
     setState(() => _loading = true);
+
+    // lấy username của currentUserId
+    final userDoc =
+    await _firestore.collection('users').doc(widget.currentUserId).get();
+    _currentUsername = userDoc.data()?['username'] ?? widget.currentUserId;
+
     final doc = await _firestore.collection('groups').doc(widget.groupId).get();
     if (doc.exists) {
       final data = doc.data()!;
@@ -39,10 +46,12 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
       if (members.isNotEmpty) {
         final snap = await _firestore
             .collection('users')
-            .where(FieldPath.documentId, whereIn: members)
+            .where('username', whereIn: members)
             .get();
         for (final d in snap.docs) {
-          map[d.id] = d.data();
+          final uData = d.data();
+          final uname = uData['username'] ?? d.id;
+          map[uname] = uData;
         }
       }
       setState(() {
@@ -56,7 +65,7 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
   }
 
   bool _isLeader() {
-    return _groupData?['leaderId'] == widget.currentUserId;
+    return _groupData?['leaderId'] == _currentUsername;
   }
 
   Future<void> _searchUsersByName(String query) async {
@@ -66,39 +75,38 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
     }
     final snap = await _firestore
         .collection('users')
-        .where('name', isGreaterThanOrEqualTo: query)
-        .where('name', isLessThanOrEqualTo: query + '\uf8ff')
+        .where('username', isGreaterThanOrEqualTo: query)
+        .where('username', isLessThanOrEqualTo: query + '\uf8ff')
         .get();
 
     setState(() {
       _searchResults = snap.docs.map((d) {
         final data = d.data();
         return {
-          'id': d.id,
-          'name': data['name'] ?? d.id,
+          'username': data['username'] ?? d.id,
           'avatarUrl': data['avatarUrl'] ?? '',
         };
       }).toList();
     });
   }
 
-  Future<void> _addMember(String userId) async {
+  Future<void> _addMember(String username) async {
     await _firestore.collection('groups').doc(widget.groupId).update({
-      'members': FieldValue.arrayUnion([userId]),
+      'members': FieldValue.arrayUnion([username]),
     });
     _addMemberController.clear();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Đã thêm $userId vào nhóm')),
+      SnackBar(content: Text('Đã thêm $username vào nhóm')),
     );
     _loadGroupInfo();
   }
 
-  Future<void> _kickMember(String memberId) async {
+  Future<void> _kickMember(String username) async {
     await _firestore.collection('groups').doc(widget.groupId).update({
-      'members': FieldValue.arrayRemove([memberId]),
+      'members': FieldValue.arrayRemove([username]),
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Đã đuổi $memberId khỏi nhóm')),
+      SnackBar(content: Text('Đã đuổi $username khỏi nhóm')),
     );
     _loadGroupInfo();
   }
@@ -111,12 +119,12 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
     Navigator.pop(context);
   }
 
-  void _confirmKick(String memberId, String displayName) {
+  void _confirmKick(String username) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Xác nhận'),
-        content: Text('Đuổi "$displayName" khỏi nhóm?'),
+        content: Text('Đuổi "$username" khỏi nhóm?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -125,7 +133,7 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await _kickMember(memberId);
+              await _kickMember(username);
             },
             child: const Text('Đuổi'),
           ),
@@ -166,10 +174,14 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
     }
 
     final members = (_groupData?['members'] as List?)?.cast<String>() ?? [];
-    final leaderId = _groupData?['leaderId'] as String?;
+    final leaderUsername = _groupData?['leaderId'] as String?;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Thành viên nhóm')),
+      appBar: AppBar(
+        title: const Text('Thành viên nhóm'),
+        backgroundColor: Colors.white,
+      ),
+      backgroundColor: Colors.white,
       body: Column(
         children: [
           if (_isLeader())
@@ -180,7 +192,7 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
                   TextField(
                     controller: _addMemberController,
                     decoration: const InputDecoration(
-                      labelText: 'Tìm thành viên theo tên',
+                      labelText: 'Tìm thành viên theo username',
                     ),
                     onChanged: _searchUsersByName,
                   ),
@@ -200,9 +212,8 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
                                   ? const Icon(Icons.person)
                                   : null,
                             ),
-                            title: Text(s['name']),
-                            subtitle: Text(s['id']),
-                            onTap: () => _addMember(s['id']),
+                            title: Text(s['username']),
+                            onTap: () => _addMember(s['username']),
                           );
                         },
                       ),
@@ -217,15 +228,13 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
               itemCount: members.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
-                final memberId = members[i];
-                final userInfo = _usersMap[memberId] ?? {};
-                final displayName = (userInfo['name'] as String?) ??
-                    (userInfo['email'] as String?) ??
-                    memberId;
-                final isLeader = leaderId == memberId;
+                final username = members[i];
+                final userInfo = _usersMap[username] ?? {};
+                final displayName = userInfo['username'] ?? username;
+                final isLeader = leaderUsername == username;
                 final canKick = _isLeader() &&
-                    memberId != leaderId &&
-                    memberId != widget.currentUserId;
+                    username != leaderUsername &&
+                    username != _currentUsername;
 
                 return ListTile(
                   leading: Icon(
@@ -239,8 +248,7 @@ class _MembersGroupScreenState extends State<MembersGroupScreen> {
                     icon: const Icon(Icons.remove_circle_outline,
                         color: Colors.redAccent),
                     tooltip: 'Đuổi thành viên',
-                    onPressed: () =>
-                        _confirmKick(memberId, displayName),
+                    onPressed: () => _confirmKick(username),
                   )
                       : null,
                 );

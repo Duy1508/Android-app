@@ -19,7 +19,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _groupNameController = TextEditingController();
   final _memberController = TextEditingController();
   final List<String> _members = [];
-  List<Map<String, dynamic>> _suggestions = []; // gợi ý từ following
+  List<Map<String, dynamic>> _suggestions = []; // gợi ý từ users
   bool _isLoading = false;
 
   @override
@@ -28,7 +28,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     if (widget.groupId != null) {
       _loadGroupData();
     }
-    _loadFollowings();
+    _loadUsers(); // lấy danh sách users để gợi ý
   }
 
   Future<void> _loadGroupData() async {
@@ -53,50 +53,39 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     }
   }
 
-  Future<void> _loadFollowings() async {
+  /// Lấy danh sách tất cả users để gợi ý (dùng username)
+  Future<void> _loadUsers() async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.currentUserId)
-          .collection('following')
-          .get();
+      final usersSnap =
+      await FirebaseFirestore.instance.collection('users').get();
 
-      final ids = snap.docs.map((d) => d.id).toList();
-
-      if (ids.isNotEmpty) {
-        final usersSnap = await FirebaseFirestore.instance
-            .collection('users')
-            .where(FieldPath.documentId, whereIn: ids)
-            .get();
-
-        setState(() {
-          _suggestions = usersSnap.docs.map((d) {
-            final data = d.data();
-            return {
-              'id': d.id,
-              'name': data['name'] ?? d.id,
-              'avatarUrl': data['avatarUrl'] ?? '',
-            };
-          }).toList();
-        });
-      }
+      setState(() {
+        _suggestions = usersSnap.docs.map((d) {
+          final data = d.data();
+          return {
+            'id': d.id, //
+            'username': data['username'] ?? d.id,
+            'avatarUrl': data['avatarUrl'] ?? '',
+          };
+        }).toList();
+      });
     } catch (e) {
-      debugPrint('Lỗi load followings: $e');
+      debugPrint('Lỗi load users: $e');
     }
   }
 
-  void _addMember(String id) {
-    if (id.isNotEmpty && !_members.contains(id)) {
+  void _addMember(String username) {
+    if (username.isNotEmpty && !_members.contains(username)) {
       setState(() {
-        _members.add(id);
+        _members.add(username);
       });
       _memberController.clear();
     }
   }
 
-  void _removeMember(String id) {
+  void _removeMember(String username) {
     setState(() {
-      _members.remove(id);
+      _members.remove(username);
     });
   }
 
@@ -109,8 +98,16 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       return;
     }
 
-    if (!_members.contains(widget.currentUserId)) {
-      _members.add(widget.currentUserId);
+    // lấy username của currentUser
+    final currentUserDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.currentUserId)
+        .get();
+    final currentUsername =
+        currentUserDoc.data()?['username'] ?? widget.currentUserId;
+
+    if (!_members.contains(currentUsername)) {
+      _members.add(currentUsername);
     }
 
     setState(() => _isLoading = true);
@@ -121,17 +118,17 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           ? groups.doc(widget.groupId)
           : groups.doc();
 
-      String leaderId = widget.currentUserId;
+      String leaderUsername = currentUsername;
       if (widget.groupId != null) {
         final existing = await docRef.get();
-        leaderId =
-            (existing.data()?['leaderId'] as String?) ?? widget.currentUserId;
+        leaderUsername =
+            (existing.data()?['leaderId'] as String?) ?? currentUsername;
       }
 
       final baseData = <String, dynamic>{
         'name': name,
-        'members': _members,
-        'leaderId': leaderId,
+        'members': _members, // lưu danh sách username
+        'leaderId': leaderUsername,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -172,13 +169,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final filteredSuggestions = query.isEmpty
         ? _suggestions
         : _suggestions
-        .where((s) => (s['name'] as String).toLowerCase().contains(query))
+        .where((s) => (s['username'] as String).toLowerCase().contains(query))
         .toList();
 
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Chỉnh sửa nhóm' : 'Tạo nhóm mới'),
+        backgroundColor: Colors.white,
       ),
+      backgroundColor: Colors.white,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
@@ -193,7 +192,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             TextField(
               controller: _memberController,
               decoration: const InputDecoration(
-                labelText: 'Thêm thành viên (userId hoặc tên)',
+                labelText: 'Thêm thành viên (username)',
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -213,9 +212,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                             ? const Icon(Icons.person)
                             : null,
                       ),
-                      title: Text(s['name']),
-                      subtitle: Text(s['id']),
-                      onTap: () => _addMember(s['id']),
+                      title: Text(s['username']),
+                      onTap: () => _addMember(s['username']),
                     );
                   },
                 ),
@@ -238,7 +236,12 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             ),
             ElevatedButton(
               onPressed: _saveGroup,
-              child: Text(isEditing ? 'Lưu thay đổi' : 'Tạo nhóm'),
+              child: Text(
+                  isEditing ? 'Lưu thay đổi' : 'Tạo nhóm',
+                  style: const TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+              ),
             ),
           ],
         ),

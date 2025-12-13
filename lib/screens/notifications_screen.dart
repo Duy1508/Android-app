@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/notification_service.dart';
 import 'profile_screen.dart';
+import 'post_detail_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -50,7 +51,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'comment':
         return Colors.orange;
       default:
-        return Colors.grey;
+        return Colors.yellow;
     }
   }
 
@@ -74,7 +75,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     } else if (postId != null) {
       // TODO: Navigate to post detail screen
-      // Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(postId: postId)));
+       Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(postId: postId)));
     }
   }
 
@@ -87,8 +88,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Thông báo'),
+        backgroundColor: Colors.white,
         actions: [
           StreamBuilder<int>(
             stream: _notificationService.getUnreadCountStream(currentUser!.uid),
@@ -221,7 +224,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         children: [
                           // Avatar
                           CircleAvatar(
-                            radius: 24,
+                            radius: 26,
                             backgroundColor: _getNotificationColor(type),
                             backgroundImage: fromUserAvatar != null && fromUserAvatar != ''
                                 ? NetworkImage(fromUserAvatar)
@@ -230,7 +233,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 ? Icon(
                               _getNotificationIcon(type),
                               color: Colors.white,
-                              size: 24,
+                              size: 26,
                             )
                                 : null,
                           ),
@@ -246,7 +249,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     fontWeight: isRead
                                         ? FontWeight.normal
                                         : FontWeight.bold,
-                                    fontSize: 14,
+                                    fontSize: 16,
                                   ),
                                 ),
                                 if (createdAt != null) ...[
@@ -255,7 +258,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     _formatTimestamp(createdAt.toDate()),
                                     style: const TextStyle(
                                       color: Colors.grey,
-                                      fontSize: 12,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ],

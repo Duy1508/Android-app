@@ -124,6 +124,7 @@ class _CommentScreenState extends State<CommentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('posts')
@@ -136,6 +137,7 @@ class _CommentScreenState extends State<CommentScreen> {
           },
         ),
       ),
+      backgroundColor: Colors.white,
       body: Column(
         children: [
           // Danh sách bình luận
@@ -264,14 +266,16 @@ class _CommentScreenState extends State<CommentScreen> {
                                       _replyingToCommentId = commentDoc.id;
                                     });
                                   },
-                                  child: const Text('Trả lời'),
+                                  child: const Text(
+                                    'Trả lời',
+                                    style: TextStyle(color: Colors.black), // ✅ chữ đen
+                                  ),
                                 ),
 
-                                // Ô nhập reply (chỉ hiển thị khi đang trả lời comment này)
+// Ô nhập reply (chỉ hiển thị khi đang trả lời comment này)
                                 if (_replyingToCommentId == commentDoc.id)
                                   Padding(
-                                    padding: const EdgeInsets.only(
-                                        left: 16, right: 16, bottom: 8),
+                                    padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
                                     child: Column(
                                       children: [
                                         TextField(
@@ -283,25 +287,52 @@ class _CommentScreenState extends State<CommentScreen> {
                                         const SizedBox(height: 6),
                                         Row(
                                           children: [
-                                            ElevatedButton(
-                                              onPressed: () =>
-                                                  _submitReply(commentDoc.id),
-                                              child: const Text('Gửi'),
+                                            // ✅ Nút Gửi gradient xanh lá
+                                            Container(
+                                              decoration: const BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                ),
+                                                borderRadius: BorderRadius.all(Radius.circular(8)),
+                                              ),
+                                              child: ElevatedButton(
+                                                onPressed: () => _submitReply(commentDoc.id),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.transparent,
+                                                  shadowColor: Colors.transparent,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  foregroundColor: Colors.white, // chữ trắng
+                                                  textStyle: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                child: const Text('Gửi'),
+                                              ),
                                             ),
                                             const SizedBox(width: 8),
+
+                                            // ✅ Nút Hủy chữ đen
                                             TextButton(
                                               onPressed: () {
                                                 setState(() {
                                                   _replyingToCommentId = null;
                                                 });
                                               },
-                                              child: const Text('Hủy'),
+                                              child: const Text(
+                                                'Hủy',
+                                                style: TextStyle(color: Colors.black),
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ],
                                     ),
                                   ),
+
 
                                 // Danh sách reply
                                 StreamBuilder<QuerySnapshot>(
@@ -464,8 +495,15 @@ class _CommentScreenState extends State<CommentScreen> {
                   const SizedBox(width: 8),
                   Container(
                     decoration: const BoxDecoration(
-                      color: Colors.blue,
                       shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFFA5D6A7),
+                          Color(0xFF81C784),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.send, color: Colors.white),
