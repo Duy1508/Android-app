@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'welcome_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'welcome_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,143 +12,152 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _auth = FirebaseAuth.instance;
+  final _db = FirebaseFirestore.instance;
+
   final emailController = TextEditingController();
   final passController = TextEditingController();
   final confirmController = TextEditingController();
+  final nameController = TextEditingController();
+  final usernameController = TextEditingController();
+
+  bool isLoading = false;
   String error = '';
-  String success = '';
 
   bool isValidEmail(String email) {
-    final emailRegex = RegExp(r'^[\w-\.]+@gmail\.com$');
-    return emailRegex.hasMatch(email);
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
   bool isValidPassword(String password) {
-    final passRegex = RegExp(r'^(?=.*[A-Z])[a-zA-Z0-9]{6,12}$');
-    return passRegex.hasMatch(password);
+    return RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]{6,12}$')
+        .hasMatch(password);
   }
 
-  void register() async {
+  Future<void> register() async {
     final email = emailController.text.trim();
     final pass = passController.text.trim();
     final confirm = confirmController.text.trim();
+    final name = nameController.text.trim();
+    final username = usernameController.text.trim();
 
     setState(() {
       error = '';
-      success = '';
+      isLoading = true;
     });
 
-    if (!isValidEmail(email)) {
-      setState(() => error = 'Email không hợp lệ (ví dụ:xzy@gmail.com)');
-      return;
-    }
-
-    if (!isValidPassword(pass)) {
-      setState(() => error = 'Mật khẩu phải từ 6–12 ký tự, ít nhất 1 chữ cái viết hoa');
-      return;
-    }
-
-    if (pass != confirm) {
-      setState(() => error = 'Mật khẩu xác nhận không khớp');
-      return;
-    }
-
     try {
-      await _auth.createUserWithEmailAndPassword(email: email, password: pass);
-
-      // ✅ Tạo hồ sơ người dùng trong Firestore
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        await FirebaseFirestore.instance.collection('users').doc(uid).set({
-          'email': email,
-          'name': '',
-          'avatarUrl': null,
-          'bio': '',
-          'followersCount': 0,
-          'followingCount': 0,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      // ===== VALIDATION =====
+      if (!isValidEmail(email)) {
+        throw 'Email không hợp lệ';
+      }
+      if (!isValidPassword(pass)) {
+        throw 'Mật khẩu phải 6–12 ký tự, có chữ hoa, chữ thường và số';
+      }
+      if (pass != confirm) {
+        throw 'Mật khẩu xác nhận không khớp';
+      }
+      if (name.isEmpty || username.isEmpty) {
+        throw 'Vui lòng nhập đầy đủ thông tin';
       }
 
-      setState(() => success = 'Đăng ký thành công!');
-      Future.delayed(const Duration(seconds: 2), () {
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => const WelcomeScreen()));
+      // ===== CHECK USERNAME (SAFE) =====
+      final usernameRef = _db.collection('usernames').doc(username);
+      final usernameSnap = await usernameRef.get();
+
+      if (usernameSnap.exists) {
+        throw 'Tên người dùng đã tồn tại';
+      }
+
+      // ===== FIREBASE AUTH =====
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+
+      final uid = cred.user?.uid;
+      if (uid == null) throw 'Không tạo được tài khoản';
+
+      // ===== BATCH WRITE =====
+      final batch = _db.batch();
+
+      batch.set(_db.collection('users').doc(uid), {
+        'uid': uid,
+        'email': email,
+        'name': name,
+        'username': username,
+        'avatarUrl': null,
+        'bio': '',
+        'followersCount': 0,
+        'followingCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
       });
+
+      batch.set(usernameRef, {
+        'uid': uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        error = 'Email đã tồn tại';
+      } else if (e.code == 'weak-password') {
+        error = 'Mật khẩu quá yếu';
+      } else {
+        error = e.message ?? 'Lỗi đăng ký';
+      }
     } catch (e) {
-      setState(() => error = 'Lỗi: ${e.toString()}');
+      error = e.toString();
+    } finally {
+      setState(() => isLoading = false);
     }
   }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passController.dispose();
+    confirmController.dispose();
+    nameController.dispose();
+    usernameController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Đăng ký', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black))),
+      appBar: AppBar(title: const Text('Đăng ký')),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                hintText: 'Nhập email',
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Color(0xFFE0E0E0)),
-                ),
-                hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
+              TextField(controller: passController, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu')),
+              TextField(controller: confirmController, obscureText: true, decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu')),
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Họ tên')),
+              TextField(controller: usernameController, decoration: const InputDecoration(labelText: 'Tên người dùng')),
+              const SizedBox(height: 20),
+
+              ElevatedButton(
+                onPressed: isLoading ? null : register,
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Đăng ký'),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Mật khẩu',
-                hintText: 'Nhập mật khẩu',
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Color(0xFFE0E0E0)),
+
+              if (error.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(error, style: const TextStyle(color: Colors.red)),
                 ),
-                hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: confirmController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Xác nhận mật khẩu',
-                hintText: 'Nhập lại mật khẩu',
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Color(0xFFE0E0E0)),
-                ),
-                hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              height: 48,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
-                ),
-                borderRadius: BorderRadius.all(Radius.circular(12)),
-              ),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: register,
-                child: const Text('Đăng ký', style: TextStyle(color: Colors.white)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            if (error.isNotEmpty) Text(error, style: const TextStyle(color: Color(0xFFBDBDBD))),
-            if (success.isNotEmpty) Text(success, style: const TextStyle(color: Color(0xFF4DD0E1))),
-          ],
+            ],
+          ),
         ),
       ),
     );

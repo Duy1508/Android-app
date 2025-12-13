@@ -1,21 +1,60 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'groups_chat_screen.dart'; // màn hình chat nhóm
 
-class GroupListScreen extends StatelessWidget {
+class GroupListScreen extends StatefulWidget {
   final String currentUserId;
   const GroupListScreen({super.key, required this.currentUserId});
 
   @override
+  State<GroupListScreen> createState() => _GroupListScreenState();
+}
+
+class _GroupListScreenState extends State<GroupListScreen> {
+  String? currentUsername;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsername();
+  }
+
+  Future<void> _loadUsername() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentUserId)
+          .get();
+      setState(() {
+        currentUsername = doc.data()?['username'] ?? widget.currentUserId;
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Lỗi load username: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (isLoading || currentUsername == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Danh sách nhóm')),
+      appBar: AppBar(
+        title: const Text('Danh sách nhóm'),
+        backgroundColor: Colors.white,
+      ),
+      backgroundColor: Colors.white,
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('groups')
-            .where('members', arrayContains: currentUserId)
+            .where('members', arrayContains: currentUsername) // lọc theo username
             .orderBy('lastMessageAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -40,8 +79,8 @@ class GroupListScreen extends StatelessWidget {
               final lastMessageReadBy =
                   (data['lastMessageReadBy'] as List?)?.cast<String>() ?? [];
               final isUnread = lastMessage.isNotEmpty &&
-                  lastSenderId != currentUserId &&
-                  !lastMessageReadBy.contains(currentUserId);
+                  lastSenderId != currentUsername &&
+                  !lastMessageReadBy.contains(currentUsername);
 
               return ListTile(
                 leading: const Icon(Icons.group),
@@ -62,7 +101,7 @@ class GroupListScreen extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => GroupChatScreen(
                         groupId: groupId,
-                        currentUserId: currentUserId,
+                        currentUserId: widget.currentUserId,
                       ),
                     ),
                   );

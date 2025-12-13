@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/notification_service.dart';
 import 'profile_screen.dart';
+import 'comment_screen.dart';
+
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -50,17 +52,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'comment':
         return Colors.orange;
       default:
-        return Colors.grey;
+        return Colors.yellow;
     }
   }
 
   void _handleNotificationTap(Map<String, dynamic> notification) async {
-    // Đánh dấu đã đọc
     if (!notification['isRead']) {
       await _notificationService.markAsRead(notification['id']);
     }
 
-    // Navigate đến profile hoặc post
     final type = notification['type'];
     final fromUserId = notification['fromUserId'];
     final postId = notification['postId'];
@@ -72,9 +72,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           builder: (_) => ProfileScreen(userId: fromUserId),
         ),
       );
-    } else if (postId != null) {
-      // TODO: Navigate to post detail screen
-      // Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(postId: postId)));
+    } else if (type == 'comment' && postId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CommentScreen(postId: postId), // ✅ mở màn hình bình luận của bài viết
+        ),
+      );
     }
   }
 
@@ -95,7 +99,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             builder: (context, snapshot) {
               final unreadCount = snapshot.data ?? 0;
               if (unreadCount == 0) return const SizedBox.shrink();
-              
+
               return TextButton(
                 onPressed: () async {
                   await _notificationService.markAllAsRead(currentUser!.uid);
@@ -120,9 +124,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           if (snapshot.hasError) {
             final error = snapshot.error.toString();
-            final isIndexError = error.contains('index') || 
-                                error.contains('FAILED_PRECONDITION');
-            
+            final isIndexError = error.contains('index') ||
+                error.contains('FAILED_PRECONDITION');
+
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -136,7 +140,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      isIndexError 
+                      isIndexError
                           ? 'Cần tạo index trong Firestore'
                           : 'Đã xảy ra lỗi',
                       style: const TextStyle(
@@ -221,17 +225,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         children: [
                           // Avatar
                           CircleAvatar(
-                            radius: 24,
+                            radius: 26,
                             backgroundColor: _getNotificationColor(type),
                             backgroundImage: fromUserAvatar != null && fromUserAvatar != ''
                                 ? NetworkImage(fromUserAvatar)
                                 : null,
                             child: fromUserAvatar == null || fromUserAvatar == ''
                                 ? Icon(
-                                    _getNotificationIcon(type),
-                                    color: Colors.white,
-                                    size: 24,
-                                  )
+                              _getNotificationIcon(type),
+                              color: Colors.white,
+                              size: 26,
+                            )
                                 : null,
                           ),
                           const SizedBox(width: 12),
@@ -246,7 +250,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     fontWeight: isRead
                                         ? FontWeight.normal
                                         : FontWeight.bold,
-                                    fontSize: 14,
+                                    fontSize: 16,
                                   ),
                                 ),
                                 if (createdAt != null) ...[
@@ -255,7 +259,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     _formatTimestamp(createdAt.toDate()),
                                     style: const TextStyle(
                                       color: Colors.grey,
-                                      fontSize: 12,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ],
@@ -302,4 +306,3 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 }
-

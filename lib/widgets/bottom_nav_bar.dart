@@ -59,7 +59,7 @@ class BottomNavBar extends StatelessWidget {
                   if (unreadChats > 0)
                     Positioned(
                       right: -6,
-                      top: -6,
+                      top: -5,
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(

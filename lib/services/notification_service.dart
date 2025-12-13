@@ -1,34 +1,36 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   // Collection references
-  CollectionReference get _notificationsRef => _firestore.collection('notifications');
-  CollectionReference get _usersRef => _firestore.collection('users');
+  CollectionReference<Map<String, dynamic>> get _notificationsRef =>
+      _firestore.collection('notifications');
+  CollectionReference<Map<String, dynamic>> get _usersRef =>
+      _firestore.collection('users');
 
-  /// Tạo notification mới
+  /// Tạo notification mới trong Firestore
   Future<void> createNotification({
     required String userId,
-    required String type,
+    required String type, // 'follow', 'like', 'comment', 'message'
     required String fromUserId,
     String? postId,
   }) async {
     try {
-      // Không tạo notification cho chính mình
       if (userId == fromUserId) return;
 
-      // Lấy thông tin người gửi
       final fromUserDoc = await _usersRef.doc(fromUserId).get();
       if (!fromUserDoc.exists) return;
 
-      final fromUserData = fromUserDoc.data() as Map<String, dynamic>?;
+      final fromUserData = fromUserDoc.data();
       if (fromUserData == null) return;
 
-      // Tạo notification
       await _notificationsRef.add({
         'userId': userId,
-        'type': type, // 'follow', 'like', 'comment'
+        'type': type,
         'fromUserId': fromUserId,
         'fromUserName': fromUserData['name'] ?? 'Người dùng',
         'fromUserAvatar': fromUserData['avatarUrl'] ?? '',
@@ -37,7 +39,17 @@ class NotificationService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Lỗi khi tạo notification: $e');
+      debugPrint('Lỗi khi tạo notification: $e');
+    }
+  }
+
+  /// Lưu token FCM vào Firestore theo userId
+  Future<void> saveTokenToUser(String userId, String token) async {
+    try {
+      await _usersRef.doc(userId).update({'fcmToken': token});
+      debugPrint('Đã lưu FCM token cho user $userId');
+    } catch (e) {
+      debugPrint('Lỗi khi lưu token: $e');
     }
   }
 
@@ -51,9 +63,7 @@ class NotificationService {
 
   /// Đánh dấu notification là đã đọc
   Future<void> markAsRead(String notificationId) async {
-    await _notificationsRef.doc(notificationId).update({
-      'isRead': true,
-    });
+    await _notificationsRef.doc(notificationId).update({'isRead': true});
   }
 
   /// Đánh dấu tất cả notifications là đã đọc
@@ -92,5 +102,54 @@ class NotificationService {
   Future<void> deleteNotification(String notificationId) async {
     await _notificationsRef.doc(notificationId).delete();
   }
-}
 
+  // -----------------------------
+  // Firebase Messaging (FCM)
+  // -----------------------------
+
+  /// Khởi tạo FCM: xin quyền, lấy token, lưu vào Firestore, lắng nghe các trạng thái
+  Future<void> initFCM(BuildContext context, String userId) async {
+    try {
+      // Xin quyền (iOS + Android 13+)
+      await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // Lấy token FCM
+      final token = await _messaging.getToken();
+      if (token != null) {
+        debugPrint('FCM Token: $token');
+        await saveTokenToUser(userId, token);
+      }
+
+      // Lắng nghe token thay đổi
+      _messaging.onTokenRefresh.listen((newToken) async {
+        debugPrint('FCM Token refreshed: $newToken');
+        await saveTokenToUser(userId, newToken);
+      });
+
+      // Nhận thông báo khi app đang mở (foreground)
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('Thông báo foreground: ${message.notification?.title}');
+        // TODO: hiển thị local notification hoặc snackbar
+      });
+
+      // Người dùng bấm thông báo mở app (background → foreground)
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('Người dùng bấm thông báo: ${message.data}');
+        // TODO: điều hướng đến màn hình phù hợp
+      });
+
+      // App mở từ trạng thái terminated (cold start)
+      final initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint('App mở từ thông báo: ${initialMessage.data}');
+        // TODO: điều hướng đến màn hình phù hợp
+      }
+    } catch (e) {
+      debugPrint('Lỗi khi khởi tạo FCM: $e');
+    }
+  }
+}

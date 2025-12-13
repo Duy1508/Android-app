@@ -46,10 +46,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<String> _uploadImage(File imageFile) async {
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('avatars')
-        .child('${widget.userId}.jpg');
+    final ref = FirebaseStorage.instance.ref().child('avatars').child('${widget.userId}.jpg');
     await ref.putFile(imageFile);
     return await ref.getDownloadURL();
   }
@@ -90,6 +87,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -108,6 +107,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: AppBar(
         title: const Text('Chỉnh sửa hồ sơ'),
         centerTitle: true,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -115,10 +116,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             CircleAvatar(
               radius: 50,
-              backgroundColor: Colors.grey.shade300,
+              backgroundColor: colorScheme.surfaceVariant,
               backgroundImage: displayImage,
               child: displayImage == null
-                  ? const Icon(Icons.person, size: 50, color: Colors.white)
+                  ? Icon(Icons.person, size: 50, color: colorScheme.onSurface)
                   : null,
             ),
             const SizedBox(height: 8),
@@ -140,18 +141,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Tên người dùng',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Tên người dùng'),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _bioController,
-              decoration: const InputDecoration(
-                labelText: 'Giới thiệu bản thân',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Giới thiệu bản thân'),
               maxLines: 3,
             ),
             const SizedBox(height: 24),
