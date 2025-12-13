@@ -22,17 +22,14 @@ class FollowService {
     }
 
     try {
-      // Tạo document trong collection followers
       await _followersRef.doc(docId).set({
         'followerId': followerId,
         'followingId': followingId,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Cập nhật counters trong users
       await _updateCounters(followerId, followingId, increment: true);
 
-      // Tạo notification
       await _notificationService.createNotification(
         userId: followingId,
         type: 'follow',
@@ -74,7 +71,7 @@ class FollowService {
     return _followersRef.doc(docId).snapshots().map((doc) => doc.exists);
   }
 
-  /// Stream danh sách followers của một user
+  /// Stream danh sách followers của một user (ai theo dõi user này)
   Stream<QuerySnapshot> getFollowersStream(String userId) {
     return _followersRef
         .where('followingId', isEqualTo: userId)
@@ -82,7 +79,7 @@ class FollowService {
         .snapshots();
   }
 
-  /// Stream danh sách following của một user
+  /// Stream danh sách following của một user (user này theo dõi ai)
   Stream<QuerySnapshot> getFollowingStream(String userId) {
     return _followersRef
         .where('followerId', isEqualTo: userId)

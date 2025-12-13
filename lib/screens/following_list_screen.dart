@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'chat_thread_screen.dart';
 
 class FollowingListScreen extends StatelessWidget {
   final String userId;
@@ -7,56 +8,109 @@ class FollowingListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Đang theo dõi')),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('following')
-            .where('followerId', isEqualTo: userId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final following = snapshot.data!.docs;
+      appBar: AppBar(
+        title: const Text('Đang theo dõi'),
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        top: false,
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('followers') // ✅ đồng bộ với FollowService
+              .where('followerId', isEqualTo: userId)
+              .orderBy('createdAt', descending: true) // có thể cần index
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Lỗi: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(child: Text('Bạn chưa theo dõi ai'));
+            }
 
-          if (following.isEmpty) {
-            return const Center(child: Text('Bạn chưa theo dõi ai'));
-          }
+            final docs = snapshot.data!.docs;
 
-          return ListView.builder(
-            itemCount: following.length,
-            itemBuilder: (context, index) {
-              final followingDoc = following[index];
-              final followingId = followingDoc['followingId'];
+            return ListView.separated(
+              padding: EdgeInsets.zero,
+              itemCount: docs.length,
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: colorScheme.outline.withOpacity(0.3)),
+              itemBuilder: (context, index) {
+                final data = docs[index].data() as Map<String, dynamic>;
+                final followingId = data['followingId'] as String?;
 
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(followingId)
-                    .get(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                    return const ListTile(title: Text('Người dùng'));
-                  }
-                  final userData =
-                  userSnapshot.data!.data() as Map<String, dynamic>;
-                  final username = userData['username'] ?? 'Ẩn danh';
-                  final avatarUrl = userData['avatarUrl'] ?? '';
+                if (followingId == null || followingId.isEmpty) {
+                  return const ListTile(title: Text('Người dùng'));
+                }
 
-                  return ListTile(
-                    leading: avatarUrl.isNotEmpty
-                        ? CircleAvatar(backgroundImage: NetworkImage(avatarUrl))
-                        : const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(username),
-                    // không có onTap → nhấn vào không làm gì
-                  );
-                },
-              );
-            },
-          );
-        },
+                return FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(followingId)
+                      .get(),
+                  builder: (context, userSnap) {
+                    if (userSnap.connectionState == ConnectionState.waiting) {
+                      return const ListTile(
+                        leading: CircleAvatar(child: Icon(Icons.person)),
+                        title: Text('Đang tải...'),
+                      );
+                    }
+                    if (!userSnap.hasData || !userSnap.data!.exists) {
+                      return const ListTile(title: Text('Người dùng'));
+                    }
+
+                    final u = userSnap.data!.data() as Map<String, dynamic>;
+                    final username = (u['username'] as String?)?.trim();
+                    final name = (u['name'] as String?)?.trim();
+                    final email = (u['email'] as String?)?.trim();
+                    final avatarUrl = (u['avatarUrl'] as String?)?.trim();
+
+                    final displayName = (username?.isNotEmpty == true)
+                        ? username!
+                        : (name?.isNotEmpty == true)
+                        ? name!
+                        : (email ?? 'Ẩn danh');
+
+                    return ListTile(
+                      leading: (avatarUrl != null && avatarUrl.isNotEmpty)
+                          ? CircleAvatar(backgroundImage: NetworkImage(avatarUrl))
+                          : CircleAvatar(
+                        backgroundColor: colorScheme.surfaceVariant,
+                        child: Icon(Icons.person,
+                            color: colorScheme.onSurface),
+                      ),
+                      title: Text(displayName,
+                          style: Theme.of(context).textTheme.bodyLarge),
+                      subtitle: (email != null && email.isNotEmpty)
+                          ? Text(email, maxLines: 1, overflow: TextOverflow.ellipsis)
+                          : null,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatThreadScreen(
+                              contactId: followingId,
+                              contactName: displayName,
+                              contactAvatarUrl: avatarUrl,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

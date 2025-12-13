@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/notification_service.dart';
 import 'profile_screen.dart';
-import 'post_detail_screen.dart';
+import 'comment_screen.dart';
+
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -56,12 +57,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _handleNotificationTap(Map<String, dynamic> notification) async {
-    // Đánh dấu đã đọc
     if (!notification['isRead']) {
       await _notificationService.markAsRead(notification['id']);
     }
 
-    // Navigate đến profile hoặc post
     final type = notification['type'];
     final fromUserId = notification['fromUserId'];
     final postId = notification['postId'];
@@ -73,9 +72,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           builder: (_) => ProfileScreen(userId: fromUserId),
         ),
       );
-    } else if (postId != null) {
-      // TODO: Navigate to post detail screen
-       Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(postId: postId)));
+    } else if (type == 'comment' && postId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CommentScreen(postId: postId), // ✅ mở màn hình bình luận của bài viết
+        ),
+      );
     }
   }
 
@@ -88,10 +91,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Thông báo'),
-        backgroundColor: Colors.white,
         actions: [
           StreamBuilder<int>(
             stream: _notificationService.getUnreadCountStream(currentUser!.uid),

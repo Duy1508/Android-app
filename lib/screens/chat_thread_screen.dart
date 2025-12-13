@@ -249,9 +249,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: isMe
-                                  ? colorScheme.primary
-                                  : colorScheme.surfaceVariant,
+                              gradient: isMe
+                                  ? const LinearGradient(
+                                colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                                  : null,
+                              color: isMe ? null : colorScheme.surfaceVariant,
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(12),
                                 topRight: const Radius.circular(12),
@@ -259,6 +264,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                 bottomRight: Radius.circular(isMe ? 0 : 12),
                               ),
                             ),
+
                             child: Column(
                               crossAxisAlignment: isMe
                                   ? CrossAxisAlignment.end
@@ -361,9 +367,21 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       height: 24,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                        : IconButton(
-                      icon: Icon(Icons.send, color: colorScheme.primary),
-                      onPressed: _sendMessage,
+                        : GestureDetector(
+                      onTap: _sendMessage,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: const Icon(Icons.send, color: Colors.white, size: 20),
+                      ),
                     ),
                   ],
                 ),

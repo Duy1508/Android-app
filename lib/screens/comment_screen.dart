@@ -55,7 +55,7 @@ class _CommentScreenState extends State<CommentScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Thông báo cho chủ bài viết (khác mình)
+      // ✅ Tạo notification cho chủ bài viết (khác mình)
       if (_postUserId != null && _postUserId != currentUser.uid) {
         await _notificationService.createNotification(
           userId: _postUserId!,
@@ -119,6 +119,7 @@ class _CommentScreenState extends State<CommentScreen> {
       return 'Vừa xong';
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -268,14 +269,15 @@ class _CommentScreenState extends State<CommentScreen> {
                                   },
                                   child: const Text(
                                     'Trả lời',
-                                    style: TextStyle(color: Colors.black), // ✅ chữ đen
+                                    style: TextStyle(color: Colors.black),
                                   ),
                                 ),
 
-// Ô nhập reply (chỉ hiển thị khi đang trả lời comment này)
+                                // Ô nhập reply
                                 if (_replyingToCommentId == commentDoc.id)
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+                                    padding: const EdgeInsets.only(
+                                        left: 16, right: 16, bottom: 8),
                                     child: Column(
                                       children: [
                                         TextField(
@@ -287,35 +289,21 @@ class _CommentScreenState extends State<CommentScreen> {
                                         const SizedBox(height: 6),
                                         Row(
                                           children: [
-                                            // ✅ Nút Gửi gradient xanh lá
-                                            Container(
-                                              decoration: const BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
+                                            ElevatedButton(
+                                              onPressed: () =>
+                                                  _submitReply(commentDoc.id),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                Colors.green.shade400,
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                  BorderRadius.circular(8),
                                                 ),
-                                                borderRadius: BorderRadius.all(Radius.circular(8)),
                                               ),
-                                              child: ElevatedButton(
-                                                onPressed: () => _submitReply(commentDoc.id),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.transparent,
-                                                  shadowColor: Colors.transparent,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  foregroundColor: Colors.white, // chữ trắng
-                                                  textStyle: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                child: const Text('Gửi'),
-                                              ),
+                                              child: const Text('Gửi'),
                                             ),
                                             const SizedBox(width: 8),
-
-                                            // ✅ Nút Hủy chữ đen
                                             TextButton(
                                               onPressed: () {
                                                 setState(() {
@@ -324,7 +312,8 @@ class _CommentScreenState extends State<CommentScreen> {
                                               },
                                               child: const Text(
                                                 'Hủy',
-                                                style: TextStyle(color: Colors.black),
+                                                style: TextStyle(
+                                                    color: Colors.black),
                                               ),
                                             ),
                                           ],
@@ -332,7 +321,6 @@ class _CommentScreenState extends State<CommentScreen> {
                                       ],
                                     ),
                                   ),
-
 
                                 // Danh sách reply
                                 StreamBuilder<QuerySnapshot>(
@@ -368,14 +356,14 @@ class _CommentScreenState extends State<CommentScreen> {
                                         final replyUserId =
                                             replyData['userId'] ?? '';
                                         final replyCreatedAt =
-                                        replyData['createdAt'] is Timestamp
+                                        replyData['createdAt']
+                                        is Timestamp
                                             ? (replyData['createdAt']
                                         as Timestamp)
                                             .toDate()
                                             : null;
 
-                                        return FutureBuilder<
-                                            DocumentSnapshot>(
+                                        return FutureBuilder<DocumentSnapshot>(
                                           future: FirebaseFirestore.instance
                                               .collection('users')
                                               .doc(replyUserId)
@@ -386,8 +374,7 @@ class _CommentScreenState extends State<CommentScreen> {
                                             replyUserSnapshot.hasData &&
                                                 replyUserSnapshot
                                                     .data!.exists
-                                                ? (replyUserSnapshot
-                                                .data!
+                                                ? (replyUserSnapshot.data!
                                                 .data()
                                             as Map<String,
                                                 dynamic>)['name'] ??
@@ -396,12 +383,16 @@ class _CommentScreenState extends State<CommentScreen> {
 
                                             return Padding(
                                               padding: const EdgeInsets.only(
-                                                  left: 48, right: 12, top: 4),
+                                                  left: 48,
+                                                  right: 12,
+                                                  top: 4),
                                               child: Row(
                                                 crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                                 children: [
-                                                  const Icon(Icons.subdirectory_arrow_right,
+                                                  const Icon(
+                                                      Icons
+                                                          .subdirectory_arrow_right,
                                                       size: 16,
                                                       color: Colors.grey),
                                                   const SizedBox(width: 6),
@@ -415,8 +406,7 @@ class _CommentScreenState extends State<CommentScreen> {
                                                           '$replyUserName: $replyText',
                                                           style:
                                                           const TextStyle(
-                                                              fontSize:
-                                                              13),
+                                                              fontSize: 13),
                                                         ),
                                                         if (replyCreatedAt !=
                                                             null)
@@ -454,7 +444,7 @@ class _CommentScreenState extends State<CommentScreen> {
             ),
           ),
 
-          // Ô nhập bình luận
+          // Ô nhập bình luận chính
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
