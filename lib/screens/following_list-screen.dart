@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'chat_thread_screen.dart';
+import 'profile_screen.dart';
 
 class FollowingListScreen extends StatelessWidget {
   final String userId;
@@ -96,11 +96,7 @@ class FollowingListScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ChatThreadScreen(
-                              contactId: followingId,
-                              contactName: displayName,
-                              contactAvatarUrl: avatarUrl,
-                            ),
+                            builder: (_) => ProfileScreen(userId: followingId),
                           ),
                         );
                       },
