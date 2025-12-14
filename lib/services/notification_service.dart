@@ -32,7 +32,7 @@ class NotificationService {
         'userId': userId,
         'type': type,
         'fromUserId': fromUserId,
-        'fromUserName': fromUserData['name'] ?? 'Người dùng',
+        'fromUserName': fromUserData['username'] ?? 'Người dùng', // đổi sang username
         'fromUserAvatar': fromUserData['avatarUrl'] ?? '',
         'postId': postId,
         'isRead': false,

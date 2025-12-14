@@ -63,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return Stack(
       children: [
         Scaffold(
+          backgroundColor: Colors.white,
           appBar: _buildAppBar(),
           body: pages[selectedIndex],
           bottomNavigationBar: BottomNavBar(

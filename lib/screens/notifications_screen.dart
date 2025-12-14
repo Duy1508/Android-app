@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/notification_service.dart';
 import 'profile_screen.dart';
 import 'comment_screen.dart';
-
+import 'chat_thread_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -26,7 +26,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'comment':
         return '$fromUserName đã bình luận bài viết của bạn';
       default:
-        return '$fromUserName đã tương tác với bạn';
+        return '$fromUserName đã gửi cho bạn 1 tin nhắn';
     }
   }
 
@@ -63,6 +63,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final type = notification['type'];
     final fromUserId = notification['fromUserId'];
+    final fromUserName = notification['fromUserName']; // nếu bạn lưu kèm tên
+    final fromUserAvatar = notification['fromUserAvatar']; // nếu bạn lưu kèm avatar
     final postId = notification['postId'];
 
     if (type == 'follow') {
@@ -76,11 +78,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CommentScreen(postId: postId), // ✅ mở màn hình bình luận của bài viết
+          builder: (_) => CommentScreen(postId: postId),
+        ),
+      );
+    } else if (type == 'message') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatThreadScreen(
+            contactId: fromUserId,
+            contactName: fromUserName ?? 'Người dùng',
+            contactAvatarUrl: fromUserAvatar,
+          ),
         ),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

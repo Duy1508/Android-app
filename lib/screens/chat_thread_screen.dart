@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -6,12 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../services/notification_service.dart';
 
-
 class ChatThreadScreen extends StatefulWidget {
   final String contactId;
   final String contactName;
   final String? contactAvatarUrl;
-
 
   const ChatThreadScreen({
     super.key,
@@ -20,28 +17,32 @@ class ChatThreadScreen extends StatefulWidget {
     this.contactAvatarUrl,
   });
 
-
   @override
   State<ChatThreadScreen> createState() => _ChatThreadScreenState();
 }
-
 
 class _ChatThreadScreenState extends State<ChatThreadScreen> {
   final TextEditingController _messageController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final User? _currentUser = FirebaseAuth.instance.currentUser;
 
-
   bool _isSending = false;
   String? _selectedMessageId;
 
+  bool canChat = false;         // chỉ true khi follow đôi chiều
+  bool checkingFollow = true;   // trạng thái đang kiểm tra follow
+
+  @override
+  void initState() {
+    super.initState();
+    _checkMutualFollow();
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
     super.dispose();
   }
-
 
   String get _chatId {
     final user = _currentUser;
@@ -50,22 +51,53 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     return '${ids[0]}_${ids[1]}';
   }
 
+  Future<void> _checkMutualFollow() async {
+    final user = _currentUser;
+    if (user == null) {
+      setState(() {
+        canChat = false;
+        checkingFollow = false;
+      });
+      return;
+    }
+
+    try {
+      final iFollowThem = await _firestore
+          .collection('followers')
+          .where('followerId', isEqualTo: user.uid)
+          .where('followingId', isEqualTo: widget.contactId)
+          .get();
+
+      final theyFollowMe = await _firestore
+          .collection('followers')
+          .where('followerId', isEqualTo: widget.contactId)
+          .where('followingId', isEqualTo: user.uid)
+          .get();
+
+      setState(() {
+        canChat = iFollowThem.docs.isNotEmpty && theyFollowMe.docs.isNotEmpty;
+        checkingFollow = false;
+      });
+    } catch (e) {
+      debugPrint('Lỗi kiểm tra follow đôi chiều: $e');
+      setState(() {
+        canChat = false;
+        checkingFollow = false;
+      });
+    }
+  }
 
   Future<void> _sendMessage() async {
     final user = _currentUser;
-    if (user == null) return;
-
+    if (user == null || !canChat) return;
 
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-
     setState(() => _isSending = true);
-
 
     try {
       final chatDoc = _firestore.collection('chats').doc(_chatId);
-
 
       await chatDoc.collection('messages').add({
         'text': text,
@@ -73,7 +105,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'readBy': [user.uid],
       });
-
 
       await chatDoc.set({
         'participants': [user.uid, widget.contactId],
@@ -83,14 +114,12 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-
       final notificationService = NotificationService();
       await notificationService.createNotification(
         userId: widget.contactId,
         type: 'message',
         fromUserId: user.uid,
       );
-
 
       _messageController.clear();
     } catch (e) {
@@ -104,28 +133,28 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     }
   }
 
-
   Future<void> _markMessagesAsRead(
       List<QueryDocumentSnapshot> messages,
       String userId,
       ) async {
     int count = 0;
     final batch = _firestore.batch();
+
     for (final doc in messages) {
       final data = doc.data() as Map<String, dynamic>;
       final senderId = data['senderId'] as String? ?? '';
       if (senderId == userId) continue;
 
-
       final readBy = (data['readBy'] as List?)?.cast<String>() ?? [];
       if (readBy.contains(userId)) continue;
 
+      batch.update(doc.reference, {
+        'readBy': FieldValue.arrayUnion([userId]),
+      });
 
-      batch.update(doc.reference, {'readBy': FieldValue.arrayUnion([userId])});
       count++;
-      if (count >= 20) break;
+      if (count >= 20) break; // tránh batch quá lớn mỗi lần build
     }
-
 
     if (count > 0) {
       await batch.commit();
@@ -135,12 +164,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final user = _currentUser;
     final colorScheme = Theme.of(context).colorScheme;
-
 
     if (user == null) {
       return const Scaffold(
@@ -148,9 +175,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       );
     }
 
-
     final userId = user.uid;
-
 
     return Scaffold(
       appBar: AppBar(
@@ -163,7 +188,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   : null,
               child: widget.contactAvatarUrl == null ||
                   widget.contactAvatarUrl!.isEmpty
-                  ? Icon(Icons.person, color: Theme.of(context).colorScheme.onSurface)
+                  ? Icon(Icons.person, color: colorScheme.onSurface)
                   : null,
             ),
             const SizedBox(width: 12),
@@ -171,7 +196,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               child: Text(
                 widget.contactName,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                style: TextStyle(color: colorScheme.onSurface),
               ),
             ),
           ],
@@ -204,15 +229,21 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text('Hãy bắt đầu cuộc trò chuyện!'));
+                    return Center(
+                      child: Text(
+                        checkingFollow
+                            ? 'Đang kiểm tra quyền trò chuyện...'
+                            : canChat
+                            ? 'Hãy bắt đầu cuộc trò chuyện!'
+                            : 'Không thể gửi tin nhắn.\nCần được người dùng follow để trò chuyện.',
+                        textAlign: TextAlign.center,
+                      ),
+                    );
                   }
-
 
                   final messages = snapshot.data!.docs;
                   _markMessagesAsRead(messages, userId);
-
 
                   return ListView.builder(
                     reverse: true,
@@ -230,8 +261,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       final isReadByOther =
                           isMe && readBy.contains(widget.contactId);
 
-
-                      // Optional: tap to toggle exact timestamp
                       return Align(
                         alignment:
                         isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -249,14 +278,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              gradient: isMe
-                                  ? const LinearGradient(
-                                colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                                  : null,
-                              color: isMe ? null : colorScheme.surfaceVariant,
+                              color: isMe
+                                  ? colorScheme.primary
+                                  : colorScheme.surfaceVariant,
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(12),
                                 topRight: const Radius.circular(12),
@@ -264,7 +288,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                 bottomRight: Radius.circular(isMe ? 0 : 12),
                               ),
                             ),
-
                             child: Column(
                               crossAxisAlignment: isMe
                                   ? CrossAxisAlignment.end
@@ -348,7 +371,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: SafeArea(
                 top: false,
-                child: Row(
+                child: checkingFollow
+                    ? const Center(
+                  child: SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+                    : canChat
+                    ? Row(
                   children: [
                     Expanded(
                       child: TextField(
@@ -365,22 +397,28 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                         ? const SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
                     )
-                        : GestureDetector(
-                      onTap: _sendMessage,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                        : IconButton(
+                      icon: Icon(Icons.send,
+                          color: colorScheme.primary),
+                      onPressed: _sendMessage,
+                    ),
+                  ],
+                )
+                    : Row(
+                  children: [
+                    const Icon(Icons.lock_outline, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Không thể gửi tin nhắn.',
+                        style: TextStyle(
+                          color:
+                          colorScheme.onSurface.withOpacity(0.8),
                         ),
-                        child: const Icon(Icons.send, color: Colors.white, size: 20),
                       ),
                     ),
                   ],
