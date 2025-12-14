@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'comment_screen.dart';
+import 'package:intl/intl.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -175,11 +176,12 @@ class _FeedScreenState extends State<FeedScreen> {
                             title: Text(name),
                             subtitle: Text(
                               post['createdAt'] != null
-                                  ? (post['createdAt'] as Timestamp)
-                                  .toDate()
-                                  .toString()
+                                  ? DateFormat('dd/MM/yyyy HH:mm').format(
+                                (post['createdAt'] as Timestamp).toDate(),
+                              )
                                   : '',
                             ),
+
                             trailing: currentUser != null &&
                                 currentUser.uid == postUserId
                                 ? PopupMenuButton<String>(
