@@ -29,8 +29,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       final user = userCredential.user;
       if (user != null) {
         final userId = user.uid;
-
-        // Khởi tạo NotificationService và gọi initFCM
         final notificationService = NotificationService();
         await notificationService.initFCM(context, userId);
       }
@@ -49,9 +47,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-
     return Scaffold(
-      backgroundColor: colorScheme.background, // ✅ dùng màu nền theo theme
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -61,14 +58,26 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'Chào mừng đến Mạng Xã Hội',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onBackground,
+                    Image.asset(
+                      'assets/leaf2.jpg',
+                      width: 256,
+                      height: 256,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 12),
+                    // Gradient text cho chữ Leaf
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                      ).createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
+                      child: Text(
+                        'Leaf',
+                        style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: Colors.white, // màu gốc sẽ bị gradient che
+                        ),
                       ),
-                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
                     TextField(
@@ -124,7 +133,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         onPressed: _login,
-                        child: const Text('Đăng nhập'),
+                        child: const Text(
+                          'Đăng nhập',
+                          style: TextStyle(color: Colors.white), // chữ trắng
+                        ),
                       ),
                     ),
                     if (error.isNotEmpty)
@@ -169,7 +181,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const RegisterScreen()),
                     ),
-                    child: const Text('Đăng ký'),
+                    child: const Text(
+                      'Đăng ký',
+                      style: TextStyle(color: Colors.white), // chữ trắng
+                    ),
                   ),
                 ),
               ),
