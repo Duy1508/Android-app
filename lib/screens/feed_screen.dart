@@ -246,11 +246,25 @@ class _FeedScreenState extends State<FeedScreen> {
                               itemBuilder: (context) => const [
                                 PopupMenuItem(
                                   value: 'edit',
-                                  child: Text('Sửa bài viết'),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit, size: 20),
+                                      SizedBox(width: 8),
+                                      Text('Sửa bài viết'),
+                                    ],
+                                  ),
                                 ),
                                 PopupMenuItem(
                                   value: 'delete',
-                                  child: Text('Xóa bài viết'),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete,
+                                          size: 20, color: Colors.red),
+                                      SizedBox(width: 8),
+                                      Text('Xóa bài viết',
+                                          style: TextStyle(color: Colors.red)),
+                                    ],
+                                  ),
                                 ),
                               ],
                             )

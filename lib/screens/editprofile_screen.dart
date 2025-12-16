@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
-
   const EditProfileScreen({super.key, required this.userId});
 
   @override
@@ -14,11 +11,12 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController();
-  String? avatarUrl;
-  File? _selectedImage;
-  bool isLoading = true;
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _bioController = TextEditingController();
+
+  String? _avatarUrl;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -27,135 +25,131 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
-    final data = doc.data();
-    if (data != null) {
-      _nameController.text = data['name'] ?? '';
-      _bioController.text = data['bio'] ?? '';
-      avatarUrl = data['avatarUrl'];
-    }
-    setState(() => isLoading = false);
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source, imageQuality: 75);
-    if (pickedFile != null) {
-      setState(() => _selectedImage = File(pickedFile.path));
-    }
-  }
-
-  Future<String> _uploadImage(File imageFile) async {
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('avatars')
-        .child('${widget.userId}.jpg');
-    await ref.putFile(imageFile);
-    return await ref.getDownloadURL();
-  }
-
-  bool _isValidName(String name) {
-    final regex = RegExp(r'^[a-zA-ZÀ-ỹ\s]+$');
-    return regex.hasMatch(name.trim());
-  }
-
-  Future<void> _saveChanges() async {
-    final name = _nameController.text.trim();
-
-    if (!_isValidName(name)) {
+    setState(() => _isLoading = true);
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        _usernameController.text = data['username'] ?? '';
+        _bioController.text = data['bio'] ?? '';
+        _avatarUrl = data['avatarUrl'];
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tên không được chứa ký tự đặc biệt hoặc số')),
+        SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
       );
-      return;
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
 
-    String? newAvatarUrl = avatarUrl;
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedImage != null) {
-      newAvatarUrl = await _uploadImage(_selectedImage!);
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
+        'username': _usernameController.text.trim(),
+        'bio': _bioController.text.trim(),
+        'avatarUrl': _avatarUrl ?? '',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cập nhật hồ sơ thành công!')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi lưu: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
 
-    await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
-      'name': name,
-      'bio': _bioController.text,
-      'avatarUrl': newAvatarUrl ?? '',
-    });
-
+  void _pickFromGallery() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã lưu thay đổi thành công')),
+      const SnackBar(content: Text('Chọn ảnh từ thư viện (chưa tích hợp)')),
     );
+  }
 
-    Navigator.pop(context);
+  void _pickFromCamera() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Chụp ảnh từ máy ảnh (chưa tích hợp)')),
+    );
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _bioController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    ImageProvider<Object>? displayImage;
-
-    if (_selectedImage != null) {
-      displayImage = FileImage(_selectedImage!);
-    } else if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      displayImage = NetworkImage(avatarUrl!);
-    }
-
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
         title: const Text('Chỉnh sửa hồ sơ'),
-        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
       ),
-      backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
           children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: displayImage,
-              child: displayImage == null
-                  ? const Icon(Icons.person, size: 50, color: Colors.white)
-                  : null,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton.icon(
-                  icon: const Icon(Icons.photo, color: Colors.black), // ✅ icon màu đen
-                  label: const Text('Thư viện'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black, // ✅ chữ màu đen
+            Center(
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                        ? NetworkImage(_avatarUrl!)
+                        : null,
+                    child: _avatarUrl == null || _avatarUrl!.isEmpty
+                        ? const Icon(Icons.person, size: 50)
+                        : null,
                   ),
-                  onPressed: () => _pickImage(ImageSource.gallery),
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.camera_alt, color: Colors.black), // ✅ icon màu đen
-                  label: const Text('Máy ảnh'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black, // ✅ chữ màu đen
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _pickFromGallery,
+                        icon: const Icon(Icons.photo),
+                        label: const Text('Thư viện'),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: _pickFromCamera,
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Máy ảnh'),
+                      ),
+                    ],
                   ),
-                  onPressed: () => _pickImage(ImageSource.camera),
-                ),
-              ],
+                ],
+              ),
             ),
-
-            const SizedBox(height: 16),
-            TextField(
-              controller: _nameController,
+            const SizedBox(height: 36),
+            TextFormField(
+              controller: _usernameController,
               decoration: const InputDecoration(
                 labelText: 'Tên người dùng',
                 border: OutlineInputBorder(),
               ),
+              validator: (value) =>
+              value == null || value.isEmpty ? 'Vui lòng nhập tên' : null,
             ),
-            const SizedBox(height: 16),
-            TextField(
+            const SizedBox(height: 28),
+            TextFormField(
               controller: _bioController,
               decoration: const InputDecoration(
                 labelText: 'Giới thiệu bản thân',
@@ -163,62 +157,49 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               maxLines: 3,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 36),
             Row(
               children: [
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ElevatedButton(
-                      onPressed: _saveChanges,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent, // nền trong suốt để lộ gradient
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: _isLoading ? null : _saveProfile,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
                         ),
-                        foregroundColor: Colors.white, // ✅ chữ trắng
-                        textStyle: const TextStyle(
-                          fontSize: 16,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                        'Lưu thay đổi',
+                        style: TextStyle(
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      child: const Text('Lưu thay đổi'),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12), // ✅ bo góc giống nút lưu
-                      color: Colors.white, // nền trắng
-                    ),
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        foregroundColor: Colors.black, // chữ đen
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8), // bo góc giống nút lưu
                       ),
-                      child: const Text('Hủy'),
                     ),
+                    child: const Text('Hủy'),
                   ),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ),

@@ -23,14 +23,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool isLoading = false;
   String error = '';
 
-  bool isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
+  // ===== VALIDATION =====
+  bool isValidEmail(String email) =>
+      RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
 
-  bool isValidPassword(String password) {
-    return RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]{6,12}$')
-        .hasMatch(password);
-  }
+  bool isValidPassword(String password) =>
+      RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]{6,12}$').hasMatch(password);
 
   Future<void> register() async {
     final email = emailController.text.trim();
@@ -45,40 +43,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // ===== VALIDATION =====
-      if (!isValidEmail(email)) {
-        throw 'Email không hợp lệ';
-      }
-      if (!isValidPassword(pass)) {
-        throw 'Mật khẩu phải 6–12 ký tự, có chữ hoa, chữ thường và số';
-      }
-      if (pass != confirm) {
-        throw 'Mật khẩu xác nhận không khớp';
-      }
-      if (name.isEmpty || username.isEmpty) {
-        throw 'Vui lòng nhập đầy đủ thông tin';
-      }
+      if (!isValidEmail(email)) throw 'Email không hợp lệ';
+      if (!isValidPassword(pass)) throw 'Mật khẩu phải 6–12 ký tự, có chữ hoa, chữ thường và số';
+      if (pass != confirm) throw 'Mật khẩu xác nhận không khớp';
+      if (name.isEmpty || username.isEmpty) throw 'Vui lòng nhập đầy đủ thông tin';
 
-      // ===== CHECK USERNAME (SAFE) =====
       final usernameRef = _db.collection('usernames').doc(username);
       final usernameSnap = await usernameRef.get();
+      if (usernameSnap.exists) throw 'Tên người dùng đã tồn tại';
 
-      if (usernameSnap.exists) {
-        throw 'Tên người dùng đã tồn tại';
-      }
-
-      // ===== FIREBASE AUTH =====
-      final cred = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: pass,
-      );
-
+      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: pass);
       final uid = cred.user?.uid;
       if (uid == null) throw 'Không tạo được tài khoản';
 
-      // ===== BATCH WRITE =====
       final batch = _db.batch();
-
       batch.set(_db.collection('users').doc(uid), {
         'uid': uid,
         'email': email,
@@ -90,29 +68,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'followingCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
       });
-
-      batch.set(usernameRef, {
-        'uid': uid,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
+      batch.set(usernameRef, {'uid': uid, 'createdAt': FieldValue.serverTimestamp()});
       await batch.commit();
 
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-      );
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        error = 'Email đã tồn tại';
-      } else if (e.code == 'weak-password') {
-        error = 'Mật khẩu quá yếu';
-      } else {
-        error = e.message ?? 'Lỗi đăng ký';
-      }
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const WelcomeScreen()));
     } catch (e) {
-      error = e.toString();
+      error = e.toString().replaceAll('Exception: ', '');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), backgroundColor: Colors.red.shade400),
+        );
+      }
     } finally {
       setState(() => isLoading = false);
     }
@@ -128,32 +95,77 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: Colors.grey.shade100,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF81C784), width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Đăng ký')),
+      appBar: AppBar(
+        title: const Text('Đăng ký'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: SingleChildScrollView(
           child: Column(
             children: [
-              TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
-              TextField(controller: passController, obscureText: true, decoration: const InputDecoration(labelText: 'Mật khẩu')),
-              TextField(controller: confirmController, obscureText: true, decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu')),
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Họ tên')),
-              TextField(controller: usernameController, decoration: const InputDecoration(labelText: 'Tên người dùng')),
-              const SizedBox(height: 20),
+              TextField(controller: emailController, decoration: _inputDecoration('Email', Icons.email)),
+              const SizedBox(height: 16),
+              TextField(controller: passController, obscureText: true, decoration: _inputDecoration('Mật khẩu', Icons.lock)),
+              const SizedBox(height: 16),
+              TextField(controller: confirmController, obscureText: true, decoration: _inputDecoration('Xác nhận mật khẩu', Icons.lock_outline)),
+              const SizedBox(height: 16),
+              TextField(controller: nameController, decoration: _inputDecoration('Họ tên', Icons.person)),
+              const SizedBox(height: 16),
+              TextField(controller: usernameController, decoration: _inputDecoration('Tên người dùng', Icons.account_circle)),
+              const SizedBox(height: 28),
 
-              ElevatedButton(
-                onPressed: isLoading ? null : register,
-                child: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Đăng ký'),
+              InkWell(
+                onTap: isLoading ? null : register,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFA5D6A7), Color(0xFF81C784)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                    'Đăng ký',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
               ),
 
               if (error.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: 16),
                   child: Text(error, style: const TextStyle(color: Colors.red)),
                 ),
             ],
