@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 
 import 'editprofile_screen.dart';
@@ -74,11 +73,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Thời gian tương đối
   String _formatDateTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-
     if (difference.inDays > 7) {
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     } else if (difference.inDays > 0) {
@@ -114,6 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
         title: const Text('Sửa bài viết'),
         content: SingleChildScrollView(
           child: Column(
@@ -342,8 +340,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 );
                               },
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.black, // màu chữ
-                                side: const BorderSide(color: Colors.black), // viền
+                                foregroundColor: Colors.black,
+                                side: const BorderSide(color: Colors.black),
                               ),
                               child: const Text('Chỉnh sửa'),
                             ),
@@ -363,8 +361,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 }
                               },
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.black, // màu chữ
-                                side: const BorderSide(color: Colors.black), // viền
+                                foregroundColor: Colors.black,
+                                side: const BorderSide(color: Colors.black),
                               ),
                               child: const Text('Chia sẻ trang cá nhân'),
                             ),
@@ -436,7 +434,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
 
-              // Danh sách bài viết (ListView/Card, xử lý lỗi chi tiết)
+              // Danh sách bài viết (ListView/Card, xử lý lỗi & xem thêm/thu gọn)
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
@@ -599,11 +597,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                                 if (content.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Text(
-                                      content,
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    child: _ExpandableText(content),
                                   ),
 
                                 if (imageUrl != null && imageUrl.isNotEmpty)
@@ -651,6 +646,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Expandable text widget cho nội dung bài viết dài
+class _ExpandableText extends StatefulWidget {
+  final String text;
+  const _ExpandableText(this.text);
+
+  @override
+  State<_ExpandableText> createState() => _ExpandableTextState();
+}
+
+class _ExpandableTextState extends State<_ExpandableText> {
+  bool expanded = false;
+  static const int cutoff = 150; // số ký tự hiển thị ban đầu
+
+  @override
+  Widget build(BuildContext context) {
+    final showFull = expanded || widget.text.length <= cutoff;
+    final displayText = showFull ? widget.text : widget.text.substring(0, cutoff) + '...';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          displayText,
+          style: const TextStyle(fontSize: 14),
+        ),
+        if (widget.text.length > cutoff)
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: Colors.blue,
+            ),
+            onPressed: () => setState(() => expanded = !expanded),
+            child: Text(expanded ? 'Thu gọn' : 'Xem thêm'),
+          ),
+      ],
     );
   }
 }

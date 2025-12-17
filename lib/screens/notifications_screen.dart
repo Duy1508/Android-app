@@ -5,6 +5,7 @@ import '../services/notification_service.dart';
 import 'profile_screen.dart';
 import 'comment_screen.dart';
 import 'chat_thread_screen.dart';
+import 'groups_chat_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -25,8 +26,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return '$fromUserName đã thích bài viết của bạn';
       case 'comment':
         return '$fromUserName đã bình luận bài viết của bạn';
-      default:
+      case 'message':
         return '$fromUserName đã gửi cho bạn 1 tin nhắn';
+      case 'group_message':
+        return '$fromUserName đã gửi 1 tin nhắn trong nhóm';
+      default:
+        return '$fromUserName có hoạt động mới';
     }
   }
 
@@ -38,6 +43,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.favorite;
       case 'comment':
         return Icons.comment;
+      case 'message':
+        return Icons.chat_bubble_outline;
+      case 'group_message':
+        return Icons.group;
       default:
         return Icons.notifications;
     }
@@ -51,6 +60,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Colors.red;
       case 'comment':
         return Colors.orange;
+      case 'message':
+        return Colors.green;
+      case 'group_message':
+        return Colors.purple;
       default:
         return Colors.yellow;
     }
@@ -66,6 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final fromUserName = notification['fromUserName']; // nếu bạn lưu kèm tên
     final fromUserAvatar = notification['fromUserAvatar']; // nếu bạn lưu kèm avatar
     final postId = notification['postId'];
+    final groupId = notification['groupId'];
 
     if (type == 'follow') {
       Navigator.push(
@@ -89,6 +103,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             contactId: fromUserId,
             contactName: fromUserName ?? 'Người dùng',
             contactAvatarUrl: fromUserAvatar,
+          ),
+        ),
+      );
+    } else if (type == 'group_message' && groupId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GroupChatScreen(
+            groupId: groupId,
+            currentUserId: currentUser!.uid,
           ),
         ),
       );

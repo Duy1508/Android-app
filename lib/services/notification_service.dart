@@ -15,9 +15,11 @@ class NotificationService {
   /// Tạo notification mới trong Firestore
   Future<void> createNotification({
     required String userId,
-    required String type, // 'follow', 'like', 'comment', 'message'
+    required String type, // 'follow', 'like', 'comment', 'message', 'group_message'
     required String fromUserId,
     String? postId,
+    String? groupId,
+    String? groupName,
   }) async {
     try {
       if (userId == fromUserId) return;
@@ -35,6 +37,8 @@ class NotificationService {
         'fromUserName': fromUserData['username'] ?? 'Người dùng', // đổi sang username
         'fromUserAvatar': fromUserData['avatarUrl'] ?? '',
         'postId': postId,
+        'groupId': groupId,
+        'groupName': groupName,
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
       });

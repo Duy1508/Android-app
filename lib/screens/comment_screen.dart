@@ -26,12 +26,16 @@ class _CommentScreenState extends State<CommentScreen> {
     _loadPostInfo();
   }
 
-  Future<void> _loadPostInfo() async {
-    final postDoc = await FirebaseFirestore.instance
-        .collection('posts')
-        .doc(widget.postId)
-        .get();
+  @override
+  void dispose() {
+    _commentController.dispose();
+    _replyController.dispose();
+    super.dispose();
+  }
 
+  Future<void> _loadPostInfo() async {
+    final postDoc =
+    await FirebaseFirestore.instance.collection('posts').doc(widget.postId).get();
     if (postDoc.exists) {
       final postData = postDoc.data() as Map<String, dynamic>;
       setState(() {
@@ -55,7 +59,7 @@ class _CommentScreenState extends State<CommentScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // ✅ Tạo notification cho chủ bài viết (khác mình)
+      // Tạo notification cho chủ bài viết (khác mình)
       if (_postUserId != null && _postUserId != currentUser.uid) {
         await _notificationService.createNotification(
           userId: _postUserId!,
@@ -68,8 +72,7 @@ class _CommentScreenState extends State<CommentScreen> {
       _commentController.clear();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     }
   }
@@ -97,8 +100,187 @@ class _CommentScreenState extends State<CommentScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
+    }
+  }
+
+  // Sửa bình luận
+  Future<void> _editCommentDialog(String commentId, String oldText) async {
+    final controller = TextEditingController(text: oldText);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sửa bình luận'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Nội dung',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('posts')
+                    .doc(widget.postId)
+                    .collection('comments')
+                    .doc(commentId)
+                    .update({
+                  'text': controller.text.trim(),
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Đã cập nhật bình luận')),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Lỗi khi cập nhật: $e')),
+                );
+              }
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Xóa bình luận
+  Future<void> _confirmDeleteComment(String commentId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa bình luận'),
+        content: const Text('Bạn chắc chắn muốn xóa bình luận này?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('posts')
+            .doc(widget.postId)
+            .collection('comments')
+            .doc(commentId)
+            .delete();
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Đã xóa bình luận')));
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi xóa: $e')),
+        );
+      }
+    }
+  }
+
+  // Sửa reply
+  Future<void> _editReplyDialog(
+      String commentId,
+      String replyId,
+      String oldText,
+      ) async {
+    final controller = TextEditingController(text: oldText);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sửa phản hồi'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Nội dung',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('posts')
+                    .doc(widget.postId)
+                    .collection('comments')
+                    .doc(commentId)
+                    .collection('replies')
+                    .doc(replyId)
+                    .update({
+                  'content': controller.text.trim(),
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Đã cập nhật phản hồi')),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Lỗi khi cập nhật: $e')),
+                );
+              }
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Xóa reply
+  Future<void> _confirmDeleteReply(String commentId, String replyId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa phản hồi'),
+        content: const Text('Bạn chắc chắn muốn xóa phản hồi này?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('posts')
+            .doc(widget.postId)
+            .collection('comments')
+            .doc(commentId)
+            .collection('replies')
+            .doc(replyId)
+            .delete();
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Đã xóa phản hồi')));
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi xóa: $e')),
+        );
       }
     }
   }
@@ -120,9 +302,10 @@ class _CommentScreenState extends State<CommentScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -208,6 +391,8 @@ class _CommentScreenState extends State<CommentScreen> {
                         userSnapshot.data!.data() as Map<String, dynamic>;
                         final userName = userData['name'] ?? 'Ẩn danh';
                         final avatarUrl = userData['avatarUrl'];
+                        final isMine =
+                            userId == FirebaseAuth.instance.currentUser?.uid;
 
                         return Card(
                           margin: const EdgeInsets.symmetric(
@@ -258,6 +443,49 @@ class _CommentScreenState extends State<CommentScreen> {
                                       ],
                                     ],
                                   ),
+                                  // Menu sửa/xóa cho chính chủ bình luận
+                                  trailing: isMine
+                                      ? PopupMenuButton<String>(
+                                    icon: const Icon(Icons.more_vert),
+                                    onSelected: (value) {
+                                      if (value == 'edit') {
+                                        _editCommentDialog(
+                                          commentDoc.id,
+                                          text,
+                                        );
+                                      } else if (value == 'delete') {
+                                        _confirmDeleteComment(
+                                            commentDoc.id);
+                                      }
+                                    },
+                                    itemBuilder: (context) => const [
+                                      PopupMenuItem(
+                                        value: 'edit',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.edit, size: 20),
+                                            SizedBox(width: 8),
+                                            Text('Sửa'),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete,
+                                                size: 20,
+                                                color: Colors.red),
+                                            SizedBox(width: 8),
+                                            Text('Xóa',
+                                                style: TextStyle(
+                                                    color: Colors.red)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                      : null,
                                 ),
 
                                 // Nút trả lời
@@ -349,7 +577,8 @@ class _CommentScreenState extends State<CommentScreen> {
                                       const NeverScrollableScrollPhysics(),
                                       itemCount: replies.length,
                                       itemBuilder: (context, i) {
-                                        final replyData = replies[i].data()
+                                        final replyDoc = replies[i];
+                                        final replyData = replyDoc.data()
                                         as Map<String, dynamic>;
                                         final replyText =
                                             replyData['content'] ?? '';
@@ -363,18 +592,23 @@ class _CommentScreenState extends State<CommentScreen> {
                                             .toDate()
                                             : null;
 
-                                        return FutureBuilder<DocumentSnapshot>(
+                                        return FutureBuilder<
+                                            DocumentSnapshot>(
                                           future: FirebaseFirestore.instance
                                               .collection('users')
                                               .doc(replyUserId)
                                               .get(),
-                                          builder:
-                                              (context, replyUserSnapshot) {
+                                          builder: (context,
+                                              replyUserSnapshot) {
+                                            final isReplyMine =
+                                                replyUserId ==
+                                                    currentUser?.uid;
                                             final replyUserName =
                                             replyUserSnapshot.hasData &&
                                                 replyUserSnapshot
                                                     .data!.exists
-                                                ? (replyUserSnapshot.data!
+                                                ? (replyUserSnapshot
+                                                .data!
                                                 .data()
                                             as Map<String,
                                                 dynamic>)['name'] ??
@@ -402,24 +636,118 @@ class _CommentScreenState extends State<CommentScreen> {
                                                       CrossAxisAlignment
                                                           .start,
                                                       children: [
-                                                        Text(
-                                                          '$replyUserName: $replyText',
-                                                          style:
-                                                          const TextStyle(
-                                                              fontSize: 13),
-                                                        ),
-                                                        if (replyCreatedAt !=
-                                                            null)
-                                                          Text(
-                                                            _formatDateTime(
-                                                                replyCreatedAt),
-                                                            style: TextStyle(
-                                                              fontSize: 11,
-                                                              color: Colors
-                                                                  .grey
-                                                                  .shade600,
+                                                        Row(
+                                                          crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                          children: [
+                                                            Expanded(
+                                                              child: Column(
+                                                                crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                                children: [
+                                                                  Text(
+                                                                    '$replyUserName: $replyText',
+                                                                    style: const TextStyle(
+                                                                        fontSize:
+                                                                        13),
+                                                                  ),
+                                                                  if (replyCreatedAt !=
+                                                                      null)
+                                                                    Text(
+                                                                      _formatDateTime(
+                                                                          replyCreatedAt),
+                                                                      style:
+                                                                      TextStyle(
+                                                                        fontSize:
+                                                                        11,
+                                                                        color: Colors
+                                                                            .grey
+                                                                            .shade600,
+                                                                      ),
+                                                                    ),
+                                                                ],
+                                                              ),
                                                             ),
-                                                          ),
+                                                            // Menu sửa/xóa reply cho chính chủ
+                                                            if (isReplyMine)
+                                                              PopupMenuButton<
+                                                                  String>(
+                                                                icon: const Icon(
+                                                                    Icons
+                                                                        .more_vert,
+                                                                    size: 18),
+                                                                onSelected:
+                                                                    (value) {
+                                                                  if (value ==
+                                                                      'edit') {
+                                                                    _editReplyDialog(
+                                                                      commentDoc
+                                                                          .id,
+                                                                      replyDoc
+                                                                          .id,
+                                                                      replyText,
+                                                                    );
+                                                                  } else if (value ==
+                                                                      'delete') {
+                                                                    _confirmDeleteReply(
+                                                                      commentDoc
+                                                                          .id,
+                                                                      replyDoc
+                                                                          .id,
+                                                                    );
+                                                                  }
+                                                                },
+                                                                itemBuilder:
+                                                                    (context) =>
+                                                                const [
+                                                                  PopupMenuItem(
+                                                                    value:
+                                                                    'edit',
+                                                                    child: Row(
+                                                                      children: [
+                                                                        Icon(
+                                                                            Icons
+                                                                                .edit,
+                                                                            size:
+                                                                            20),
+                                                                        SizedBox(
+                                                                            width:
+                                                                            8),
+                                                                        Text(
+                                                                            'Sửa'),
+                                                                      ],
+                                                                    ),
+                                                                  ),
+                                                                  PopupMenuItem(
+                                                                    value:
+                                                                    'delete',
+                                                                    child: Row(
+                                                                      children: [
+                                                                        Icon(
+                                                                          Icons
+                                                                              .delete,
+                                                                          size:
+                                                                          20,
+                                                                          color:
+                                                                          Colors.red,
+                                                                        ),
+                                                                        SizedBox(
+                                                                            width:
+                                                                            8),
+                                                                        Text(
+                                                                          'Xóa',
+                                                                          style:
+                                                                          TextStyle(color: Colors.red),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                          ],
+                                                        ),
                                                       ],
                                                     ),
                                                   ),

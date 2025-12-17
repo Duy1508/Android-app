@@ -49,6 +49,7 @@ class _FeedScreenState extends State<FeedScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
         title: const Text('Người đã thích'),
         content: FutureBuilder<QuerySnapshot>(
           future: FirebaseFirestore.instance
@@ -136,80 +137,60 @@ class _FeedScreenState extends State<FeedScreen> {
             final postUserId = post['userId'];
 
             return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(postUserId)
-                  .get(),
+              future: FirebaseFirestore.instance.collection('users').doc(postUserId).get(),
               builder: (context, userSnapshot) {
                 if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
                   return const SizedBox.shrink();
                 }
 
-                final userData =
-                userSnapshot.data!.data() as Map<String, dynamic>;
+                final userData = userSnapshot.data!.data() as Map<String, dynamic>;
                 final username = (userData['username'] as String?) ?? 'Ẩn danh';
                 final avatarUrl = (userData['avatarUrl'] as String?) ?? '';
+                final currentUser = FirebaseAuth.instance.currentUser;
 
                 bool expanded = false;
 
                 return StatefulBuilder(
                   builder: (context, setStateCard) {
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.shade200,
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Header: avatar + username + menu
                           ListTile(
                             leading: avatarUrl.isNotEmpty
-                                ? CircleAvatar(
-                              backgroundImage: NetworkImage(avatarUrl),
-                            )
+                                ? CircleAvatar(backgroundImage: NetworkImage(avatarUrl))
                                 : const CircleAvatar(child: Icon(Icons.person)),
-                            title: Text(username),
+                            title: Text('@$username',
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text(
                               post['createdAt'] != null
-                                  ? DateFormat('dd/MM/yyyy HH:mm').format(
-                                (post['createdAt'] as Timestamp).toDate(),
-                              )
+                                  ? DateFormat('dd/MM/yyyy HH:mm')
+                                  .format((post['createdAt'] as Timestamp).toDate())
                                   : '',
+                              style: const TextStyle(fontSize: 12),
                             ),
                             trailing: currentUser != null &&
                                 currentUser.uid == postUserId
                                 ? PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert),
                               onSelected: (value) async {
-                                if (value == 'delete') {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Xóa bài viết'),
-                                      content: const Text(
-                                        'Bạn có chắc muốn xóa bài viết này?',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
-                                          child: const Text('Hủy'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, true),
-                                          child: const Text('Xóa'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true) {
-                                    await postDoc.reference.delete();
-                                  }
-                                } else if (value == 'edit') {
-                                  final controller =
-                                  TextEditingController(
-                                    text: (post['content'] as String?) ?? '',
-                                  );
+                                if (value == 'edit') {
+                                  final controller = TextEditingController(
+                                      text: (post['content'] as String?) ?? '');
                                   final confirm = await showDialog<bool>(
                                     context: context,
                                     builder: (context) => AlertDialog(
@@ -217,29 +198,47 @@ class _FeedScreenState extends State<FeedScreen> {
                                       content: TextField(
                                         controller: controller,
                                         maxLines: 5,
-                                        decoration:
-                                        const InputDecoration(
+                                        decoration: const InputDecoration(
                                           hintText: 'Nhập nội dung mới...',
                                         ),
                                       ),
                                       actions: [
                                         TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
-                                          child: const Text('Hủy'),
-                                        ),
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('Hủy')),
                                         TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, true),
-                                          child: const Text('Lưu'),
-                                        ),
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text('Lưu')),
                                       ],
                                     ),
                                   );
                                   if (confirm == true) {
-                                    await postDoc.reference.update({
-                                      'content': controller.text,
-                                    });
+                                    await postDoc.reference
+                                        .update({'content': controller.text});
+                                  }
+                                } else if (value == 'delete') {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Xóa bài viết'),
+                                      content: const Text(
+                                          'Bạn có chắc muốn xóa bài viết này?'),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('Hủy')),
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text('Xóa')),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    await postDoc.reference.delete();
                                   }
                                 }
                               },
@@ -270,44 +269,73 @@ class _FeedScreenState extends State<FeedScreen> {
                             )
                                 : null,
                           ),
+
+                          // Nội dung bài viết với xem thêm/thu gọn
+                          if ((post['content'] as String?)?.isNotEmpty == true)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    post['content'],
+                                    maxLines: expanded ? null : 3,
+                                    overflow:
+                                    expanded ? null : TextOverflow.ellipsis,
+                                  ),
+                                  if ((post['content'] as String).length > 100)
+                                    TextButton(
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        foregroundColor: Colors.blue,
+                                      ),
+                                      onPressed: () {
+                                        setStateCard(() {
+                                          expanded = !expanded;
+                                        });
+                                      },
+                                      child: Text(expanded ? 'Thu gọn' : 'Xem thêm'),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                          // Ảnh bài viết
                           if ((post['imageUrl'] as String?)?.isNotEmpty == true)
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.all(12),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
-                                  post['imageUrl'] as String,
+                                  post['imageUrl'],
                                   fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Container(
+                                        height: 200,
+                                        color: Colors.grey.shade300,
+                                        child: const Center(
+                                            child: Icon(Icons.broken_image,
+                                                color: Colors.grey)),
+                                      ),
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) return child;
+                                    return Container(
+                                      height: 200,
+                                      color: Colors.grey.shade200,
+                                      child: const Center(
+                                          child: CircularProgressIndicator()),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
+
+                          // Footer: like + comment
                           Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  (post['content'] as String?) ?? '',
-                                  maxLines: expanded ? null : 3,
-                                  overflow:
-                                  expanded ? null : TextOverflow.ellipsis,
-                                ),
-                                if (((post['content'] as String?) ?? '').length >
-                                    100)
-                                  TextButton(
-                                    onPressed: () {
-                                      setStateCard(() {
-                                        expanded = !expanded;
-                                      });
-                                    },
-                                    child:
-                                    Text(expanded ? 'Thu gọn' : 'Xem thêm'),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             child: Row(
                               children: [
                                 IconButton(
@@ -320,33 +348,20 @@ class _FeedScreenState extends State<FeedScreen> {
                                   onPressed: () async {
                                     if (currentUser == null) return;
                                     final uid = currentUser.uid;
-
-                                    // Toggle like
                                     final isLike = !likes.contains(uid);
                                     if (isLike) {
                                       likes.add(uid);
                                     } else {
                                       likes.remove(uid);
                                     }
-
-                                    // Cập nhật likes
-                                    await postDoc.reference.update({
-                                      'likes': likes,
-                                    });
-
-                                    // Tạo thông báo khi có like mới (không thông báo khi bỏ like, và không tự thông báo cho chính mình)
+                                    await postDoc.reference.update({'likes': likes});
                                     if (isLike && postUserId != uid) {
-                                      try {
-                                        await NotificationService()
-                                            .createNotification(
-                                          userId: postUserId,     // người nhận
-                                          type: 'like',
-                                          fromUserId: uid,        // người thực hiện like
-                                          postId: postDoc.id,
-                                        );
-                                      } catch (e) {
-                                        debugPrint('Lỗi tạo thông báo like: $e');
-                                      }
+                                      await NotificationService().createNotification(
+                                        userId: postUserId,
+                                        type: 'like',
+                                        fromUserId: uid,
+                                        postId: postDoc.id,
+                                      );
                                     }
                                   },
                                 ),
@@ -357,9 +372,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                     }
                                   },
                                   child: Text(
-                                    likes.isEmpty
-                                        ? '0 lượt thích'
-                                        : '${likes.length} lượt thích',
+                                    '${likes.length} lượt thích',
                                     style: const TextStyle(fontSize: 14),
                                   ),
                                 ),
@@ -385,16 +398,13 @@ class _FeedScreenState extends State<FeedScreen> {
                                   builder: (context, commentSnapshot) {
                                     final commentCount =
                                         commentSnapshot.data?.docs.length ?? 0;
-                                    return Text(
-                                      '$commentCount',
-                                      style: const TextStyle(fontSize: 14),
-                                    );
+                                    return Text('$commentCount',
+                                        style: const TextStyle(fontSize: 14));
                                   },
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 8),
                         ],
                       ),
                     );
@@ -404,6 +414,7 @@ class _FeedScreenState extends State<FeedScreen> {
             );
           },
         );
+
       },
     );
   }
